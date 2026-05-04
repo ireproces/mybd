@@ -1,0 +1,20 @@
+# Dataset
+dataset/raw/*
+dataset/processed/*
+*.parquet
+# Exeptions
+!dataset/raw/flight_data_2024_sample.csv
+!dataset/raw/flight_data_2024_data_dictionary.csv
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Java/Maven (per MapReduce)
+job1_mapreduce/target/
+*.jar
+*.class
+
+# OS
+.DS_Store
