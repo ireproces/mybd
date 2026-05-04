@@ -1,0 +1,16 @@
+Creazione della struttura del progetto:
+il repository contiene entrambi i progetti di big data, il secondo (uguale per tutti) è stato denominato "Flight-Delay_Project"
+la struttura riflette una suddivisione netta tra i job (e relative tecnologie utilizzate per ciascuno) e le diversi fasi di sviluppo
+
+dockerfile:
+l'immagine docker è basata su python:3.10-slim-bullseye, un pacchetto light di python che contiene ancora la versione 11 di java (rimossa
+nell'ultima versione)
+per installare hadoop ed hive viene utilizzato il tool aria2 che consente di instaurari connessioni multiple (in questo caso sono
+state instaurate 16 connessioni) con il server Apache e velocizzare il download dei codici sorgente --> le variabili di ambiente, così
+come evenbtuali configurazioni di caso d'uso, sono state configurate secondo quanto detto durante le esercitazioni in aula
+Spark (e di conseguenza SparkSQL) non viene installato direttamente, bensì attraverso il donwload della libreria PySpark
+
+script:
+- run_local.sh è uno script bash utilizzato per buildare l'immagine di docker ed avviare un container che la utilizzi, questo
+è stato fatto per garantire il requisito di riproducibilità --> qualsiasi altro utente non deve far altro che eseguire lo script
+ed attenderne il completamento
