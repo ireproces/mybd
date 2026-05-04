@@ -18,5 +18,5 @@ echo -e "${GREEN}[2/2] Starting the container and mounting the working directory
 echo "You are now in the isolated environment. Run your scripts from here."
 echo "To exit, type: exit"
 
-# Mount the current folder (your project) into /app in the container
+# Mount the current folder into /app in the container
 docker run -it --rm -v $(pwd):/app bigdata-env
