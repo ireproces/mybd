@@ -14,3 +14,42 @@ script:
 - run_local.sh è uno script bash utilizzato per buildare l'immagine di docker ed avviare un container che la utilizzi, questo
 è stato fatto per garantire il requisito di riproducibilità --> qualsiasi altro utente non deve far altro che eseguire lo script
 ed attenderne il completamento
+- data_cleaning.py è uno script python per la creazione di un dataset più performante da far elaborare ai job 1,2,3
+    --> la scelta dellen colonne da mantenere è guidata strettamente dagli obiettivi di business del progetto (le 3 analisi da eseguire)
+        * job 1 = calcolare, per ogni compagnia: ritardi min/max/medi in arrivo, tasso di cancellazione e mesi di operatività su singole
+        tratte (o aeroporti di partenza) --> colonne rilevanti: op_unique_carrier (chiave di raggruppamento - nome o codice della compagnia),
+        origin e dest (identificano le tratte servite o l'aeroporto di partenza), arr_delay (per calcolare i ritardi in arrivo), cancelled (
+        per calcolare il tasso di cancellazione), month (per elencare i mesi di operatività)
+        * job 2 = calcolare, per ogni aeroporto e mese: voli per fasce di ritardo in partenza, ritardo medio (partenza e arrivo) per fascia,
+        e le cause più frequenti di ritardo/cancellazione --> colonne rilevanti: origin e month (chiavi di raggruppamento), dep_delay (per creare
+        le fasce di ritardo in partenza e per calcolare il ritardo medio di partenza), arr_delay (per calcolare il ritardo medio in arrivo per
+        ogni fascia), cancellation_code (per trovare le cause di cancellazione più frequenti), carrier_delay, weather_delay, nas_delay,
+        security_delay, late_aircraft_delay (per trovare le cause di ritardo più frequenti)
+        * job 3 = confrontare il ritardo medio in partenza di una compagnia in un aeroporto con il ritardo medio generale di quell'aeroporto
+        --> colonne rilevanti: origin e op_unique_carrier (chiavi di raggruppamento per creare le coppie), dep_delay (per calcolare il ritardo
+        medio in partenza - sia della compagnia che complessivo dell'aeroporto - per fare le differenze e il ranking), arr_delay (per il
+        calcolo del ritardo medio in arrivo richiesto dal report), cancelled (per calcolare il tasso di cancellazione della coppia)
+    --> .withColumn("cancelled", col("cancelled").cast("integer")): il campo cancelled è un flag binario, un volo è o cancellato (1) o non
+    cancellato (0)
+    --> df_cleaned.fillna(0.0, subset=delay_causes): trasforma tutti i Null in 0.0 nelle specifiche colonne delle "cause di ritardo". Sostituire
+    permette, ad esempio, di fare facilmente le somme totali dei minuti persi per ogni singola causa nel Job 2
+
+Flusso di lavoro:
+* dopo aver configurato correttamente l'ambiente contanerizzato ed aver verificato che tutto funzionasse, è stato effettuato il
+download del dataset tramite Kaggle cURL ed è stata utilizzata l'IA (Gemini Pro) per effettuare un EDA approssimativa, per valutare la
+struttura, sul dataset sample fornito.
+* è stata effettuata un'EDA sul dataset completo per supportare e giustificare la fase di data preparation --> è stato creato un
+ambiente virtuale nel quale sono state installate le librerie necessarie per creare un notebook jupyter (per questioni di performance è
+stata scelta la libreria pyspark per il processamento del dataset è una scelta architetturale mirata: permette il processamento distribuito
+(sfruttando tutti i core della CPU) e l'esecuzione lazy, ottimizzando il consumo di memoria per un dataset di oltre 7 milioni di record. le
+classiche pandas, matplotlib e seaborn vengono utilizzate per la creazione e la visualizzazione dei grafici).
+l'EDA si è così strutturata:
+    1. caricamento ed analisi dimensionale del dataset completo
+    2. analisi dei valori nulli: le colonne selezionate per l'analisi corrispondono alle Target Variables del progetto
+        * dep_delay, arr_delay --> cuore del progetto, sono la metrica assoluta da prevedere o analizzare
+        * cancelled --> colonna "Bussola", un volo nel mondo reale può fare solo due cose: partire (con o senza ritardo) o essere cancellato.
+        * cancellation_code --> colonna prova per la coerenza del dataset
+* a seguito di ciò, ed in ottica futura (analisi dei ritardi), si è scelto di creare un dataset in formato .parquet (anziché rimuovere valori,
+modificare i campi o splittare in dataset con proprietà diverse), molto più compresso e veloce del CSV, in cui i ritardi dei valori
+cancellati vengono lasciati a Null. questo perché, sia in HQL che in PySpark, le funzioni di aggregazione che verrano utilizzate
+ignorano automaticamente i valori Null. --> script data_cleaning.py
