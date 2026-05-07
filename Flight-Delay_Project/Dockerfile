@@ -41,6 +41,15 @@ RUN rm $HIVE_HOME/lib/guava-14.0.1.jar && \
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# Spark logging configuration
+RUN mkdir -p /usr/local/lib/python3.10/site-packages/pyspark/conf && \
+    echo "rootLogger.level = error" > /usr/local/lib/python3.10/site-packages/pyspark/conf/log4j2.properties && \
+    echo "rootLogger.appenderRef.stdout.ref = console" >> /usr/local/lib/python3.10/site-packages/pyspark/conf/log4j2.properties && \
+    echo "appender.console.type = Console" >> /usr/local/lib/python3.10/site-packages/pyspark/conf/log4j2.properties && \
+    echo "appender.console.name = console" >> /usr/local/lib/python3.10/site-packages/pyspark/conf/log4j2.properties && \
+    echo "appender.console.target = SYSTEM_ERR" >> /usr/local/lib/python3.10/site-packages/pyspark/conf/log4j2.properties && \
+    echo "appender.console.layout.type = PatternLayout" >> /usr/local/lib/python3.10/site-packages/pyspark/conf/log4j2.properties && \
+    echo "appender.console.layout.pattern = %d{yy/MM/dd HH:mm:ss} %p %c{1}: %m%n%ex" >> /usr/local/lib/python3.10/site-packages/pyspark/conf/log4j2.properties
 
 # Default command (keeps the container alive to receive instructions)
 CMD ["/bin/bash"]
