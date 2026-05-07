@@ -39,7 +39,7 @@ def main():
     df_selected = df_raw.select([col(c) for c in columns_to_keep])
 
     # 3. Type casting & Feature Engineering Base
-    print("Data Type Casting & Feature Engineering...")
+    print(" Data Type Casting & Feature Engineering...")
     df_cleaned = df_selected \
         .withColumn("dep_delay", col("dep_delay").cast("float")) \
         .withColumn("arr_delay", col("arr_delay").cast("float")) \
@@ -52,7 +52,7 @@ def main():
     df_cleaned = df_cleaned.fillna(0.0, subset=delay_causes)
 
     # 4. Duplicate check and removal (if any)
-    print("Checking for duplicates...")
+    print(" Checking for duplicates...")
     initial_records = df_cleaned.count() # comment for the complete dataset
 
     # removes all the identical rows in all the columns
@@ -60,11 +60,9 @@ def main():
 
     final_records = df_cleaned.count() # comment for the complete dataset
     duplicates_removed = initial_records - final_records
-
-    print("\n")
-    print(f"Initial Records: {initial_records}")
-    print(f"Final Records (cleaned): {final_records}")
-    print(f"Duplicates found and removed: {duplicates_removed}")
+    print(f"  Initial Records: {initial_records}")
+    print(f"  Final Records (cleaned): {final_records}")
+    print(f"  Duplicates found and removed: {duplicates_removed}")
 
     # 5. Saving in Parquet
     # dropping the original departure time column as we have extracted the hour feature from it
@@ -74,7 +72,7 @@ def main():
     # use 'overwrite' for avoiding errors if the script is re-run
     df_cleaned.write.mode("overwrite").parquet(output_path)
 
-    print("Data Preparation completed successfully!")
+    print("\nData Preparation completed successfully!\n")
     df_cleaned.printSchema()
 
 if __name__ == "__main__":
