@@ -2,17 +2,179 @@ import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
-def main():
-    print("SparkSession Initialization...")
-    # 0. Creating the Spark engine instance with a specific app name
-    spark = SparkSession.builder \
-        .appName("FlightData_Preparation") \
-        .getOrCreate()
+# ==========================================
+# DEBUG AND PERFORMANCE SWITCH
+# ==========================================
+# Set to True for development (print counts, detailed logs, and diagrams)
+# Set to False for production (maximum speed and efficiency)
+DEBUG_MODE = False
 
+# function to initialize the SparkSession with a specified application
+# name given as an input parameter
+def init_spark(appName="FlightData_Preparation"):
+
+    print(" SparkSession Initialization...")
+    spark = SparkSession.builder.appName(appName).getOrCreate()
     # to avoid excessive logging in console
     spark.sparkContext.setLogLevel("ERROR")
-    
-    # sys.argv is used to get the command-line arguments passed to the script
+
+    print(" SparkSession Ready!")
+    return spark
+
+# function to load the data from the specified input path given as an input parameter,
+def load_data(spark, input_path):
+
+    print(f" Loading data from: {input_path}")
+
+    # the function reads the CSV file and create a Spark DataFrame from it
+    # header=True is used to indicate that the first row of the CSV file contains the column names
+    # inferSchema=True is used to automatically detect the data types of the columns
+    df_raw = spark.read.csv(input_path, header=True, inferSchema=True)
+
+    print(" Data loaded successfully!")
+    return df_raw
+
+# function to check for duplicates and remove them if found
+def remove_duplicates(df, current_count=None):
+
+    print(" Checking for duplicates...")
+    df_deduplicated = df.dropDuplicates()
+
+    print(" Duplicate check and removal completed successfully!")
+
+    # Debugging informations
+    if DEBUG_MODE and current_count is not None:
+        new_count = df_deduplicated.count()
+        print(f"  Initial Records: {current_count}")
+        print(f"  Final Records (cleaned): {new_count}")
+        print(f"  Duplicates found and removed: {current_count - new_count}")
+        return df_deduplicated, new_count
+    else:
+        return df_deduplicated, current_count
+
+# function to normalize the data by column pruning and type casting
+def select_and_cast_features(df):
+
+    print(" Applying Column Pruning & Data Type Casting...")
+
+    # uses the data dictionary to categorize the relevant columns based on the data types
+    # float types relevant columns
+    float_cols = ["distance", "dep_delay", "arr_delay"]
+    # int types relevant columns (Spark has just one integer type, so we can unify the the
+    # int64 and the Int64 that appears in the data dictionary)
+    int_cols = [
+        "month", "crs_dep_time", "cancelled",
+        "carrier_delay", "weather_delay", "nas_delay",
+        "security_delay", "late_aircraft_delay"
+    ]
+    # string types relevant columns
+    string_cols = ["op_unique_carrier", "origin", "dest", "cancellation_code"]
+
+    # DataFrame with only the selected columns, the rest are dropped
+    all_columns = float_cols + int_cols + string_cols
+    df_pruned = df.select([col(c) for c in all_columns])
+
+    # new copy of the pruned DataFrame where the type casting will be applied iteratively for each column
+    df_casted = df_pruned
+
+    for c in float_cols:
+        df_casted = df_casted.withColumn(c, col(c).cast("float"))
+    for c in int_cols:
+        df_casted = df_casted.withColumn(c, col(c).cast("integer")) 
+    for c in string_cols:
+        df_casted = df_casted.withColumn(c, col(c).cast("string"))
+
+    print(" Column Pruning & Data Type Casting completed successfully!")
+
+    # Debugging informations
+    if DEBUG_MODE:
+        total_cols = len(df.columns)
+        print(f"  Total columns in the raw dataset: {total_cols}")
+        print(f"  Total columns after pruning: {len(df_casted.columns)}")
+
+    return df_casted
+
+# function to engineer new features
+def engineer_features(df):
+
+    print(" Applying Feature Engineering...")
+
+    # extraction of the hour from the scheduled departure time
+    df_engineered = df.withColumn("hour", (col("crs_dep_time").cast("int") / 100).cast("int"))
+
+    # fill NA only for delay causes (if there is no delay the cause is worth 0)
+    delay_causes = ["carrier_delay", "weather_delay", "nas_delay", "security_delay", "late_aircraft_delay"]
+    df_engineered = df_engineered.fillna(0.0, subset=delay_causes)
+
+    df_engineered = df_engineered.drop("crs_dep_time")
+
+    print(" Feature Engineering completed successfully!")
+
+    # Debugging informations
+    if DEBUG_MODE:
+        print("  DataFrame schema before feature engineering:")
+        df.printSchema()
+        print("  DataFrame schema after feature engineering:")
+        df_engineered.printSchema()
+
+    return df_engineered
+
+# function to apply logical filters to remove erroneous records
+def apply_data_quality_filters(df, current_count=None):
+
+    print(" Applying Logical Filters...")
+
+    # flight logic filters: the distance must be greater than 0 and the origin and destination
+    # airports must exist (not null)
+    condition_flight = (
+        (col("distance") > 0) & 
+        col("origin").isNotNull() & 
+        col("dest").isNotNull()
+    )
+
+    # filters on the logic of the flights operated:
+    # if a flight is operated, the departure delay and the arrival delay must be not null
+    # if a flight is diverted, the arrival delay must be null
+    condition_operated = (
+        (col("cancelled") == 0) & 
+        col("cancellation_code").isNull() &
+        col("dep_delay").isNotNull() & 
+        col("arr_delay").isNotNull()
+    )
+
+    # filters on the logic of cancellations: if a flight is cancelled the cancellation code
+    # must be not null
+    condition_cancelled = ((col("cancelled") == 1) & col("cancellation_code").isNotNull())
+
+    # applyes the filters
+    df_filtered = df.filter(
+        condition_flight & (condition_operated | condition_cancelled)
+    )
+
+    print(" Logical Filtering completed successfully!")
+
+    # Debugging informations
+    if DEBUG_MODE and current_count is not None:
+        new_count = df_filtered.count()
+        print(f"  Records before logical filtering: {current_count}")
+        print(f"  Records after logical filtering: {new_count}")
+        print(f"  Erroneous records found and removed: {current_count - new_count}")
+        return df_filtered, new_count
+    else:
+        return df_filtered, current_count
+
+# function to save the cleaned data in Parquet format to the specified output path
+def save_data(df, output_path):
+
+    print(f" Saving cleaned dataset to: {output_path}")
+    df.write.mode("overwrite").parquet(output_path)
+    print(" Data saved successfully!")
+    return df
+
+# function to orchestrate the entire process
+def main():
+
+    # 0. Command-line arguments checking
     # if the number of arguments is not 3 (script name + 2 parameters), stop the execution
     if len(sys.argv) != 3:
         print("EXECUTION ERROR: Missing parameters.")
@@ -22,58 +184,51 @@ def main():
     input_path = sys.argv[1] 
     output_path = sys.argv[2]
 
-    # 1. Data loading
-    print(f"Loading data from: {input_path}")
+    # --- Data Cleaning Pipeline ---
+    print("Starting the Data Cleaning Pipeline...")
 
-    df_raw = spark.read.csv(input_path, header=True, inferSchema=True)
+    # 1. Initialize SparkSession
+    print("\nStarting the Phase 1...")
+    spark = init_spark()
+    print("Phase 1 completed.")
 
-    # 2. Column Pruning / Projection
-    # only columns relevant to job execution and EDA discovers were retained
-    columns_to_keep = [
-        "op_unique_carrier", "origin", "dest", "month", 
-        "crs_dep_time", "distance", "dep_delay", "arr_delay",
-        "cancelled", "cancellation_code", "carrier_delay",
-        "weather_delay", "nas_delay", "security_delay", "late_aircraft_delay"
-    ]
+    # 2. Data loading
+    print("\nStarting the Phase 2...")
+    df_raw = load_data(spark, input_path)
+    print("Phase 2 completed.")
 
-    df_selected = df_raw.select([col(c) for c in columns_to_keep])
+    current_row_count = None
+    if DEBUG_MODE: 
+        current_row_count = df_raw.count()
 
-    # 3. Type casting & Feature Engineering Base
-    print(" Data Type Casting & Feature Engineering...")
-    df_cleaned = df_selected \
-        .withColumn("dep_delay", col("dep_delay").cast("float")) \
-        .withColumn("arr_delay", col("arr_delay").cast("float")) \
-        .withColumn("distance", col("distance").cast("float")) \
-        .withColumn("cancelled", col("cancelled").cast("integer")) \
-        .withColumn("hour", (col("crs_dep_time").cast("int") / 100).cast("int")) # hour extraction
+    # 3. Duplicate check and removal
+    print("\nStarting the Phase 3...")
+    df_deduplicated, current_row_count = remove_duplicates(df_raw, current_row_count)
+    print("Phase 3 completed.")
 
-    # fill NA only for delay causes (if there is no delay the cause is worth 0)
-    delay_causes = ["carrier_delay", "weather_delay", "nas_delay", "security_delay", "late_aircraft_delay"]
-    df_cleaned = df_cleaned.fillna(0.0, subset=delay_causes)
+    # 4. Column Pruning and Type Casting
+    print("\nStarting the Phase 4...")
+    df_casted = select_and_cast_features(df_deduplicated)
+    print("Phase 4 completed.")
 
-    # 4. Duplicate check and removal (if any)
-    print(" Checking for duplicates...")
-    initial_records = df_cleaned.count() # comment for the complete dataset
+    # 5. Feature Engineering
+    print("\nStarting the Phase 5...")
+    df_engineered = engineer_features(df_casted)
+    print("Phase 5 completed.")
 
-    # removes all the identical rows in all the columns
-    df_cleaned = df_cleaned.dropDuplicates()
+    # 6. Logical Filtering
+    print("\nStarting the Phase 6...")
+    df_filtered, current_row_count = apply_data_quality_filters(df_engineered, current_row_count)
+    print("Phase 6 completed.")
 
-    final_records = df_cleaned.count() # comment for the complete dataset
-    duplicates_removed = initial_records - final_records
-    print(f"  Initial Records: {initial_records}")
-    print(f"  Final Records (cleaned): {final_records}")
-    print(f"  Duplicates found and removed: {duplicates_removed}")
-
-    # 5. Saving in Parquet
-    # dropping the original departure time column as we have extracted the hour feature from it
-    df_cleaned = df_cleaned.drop("crs_dep_time")
-    print(f"Saving cleaned dataset to: {output_path}")
-
-    # use 'overwrite' for avoiding errors if the script is re-run
-    df_cleaned.write.mode("overwrite").parquet(output_path)
+    # 7. Saving the cleaned dataset in Parquet format
+    print("\nStarting the Phase 7...")
+    df_cleaned = save_data(df_filtered, output_path)
+    print("Phase 7 completed.")
 
     print("\nData Preparation completed successfully!\n")
-    df_cleaned.printSchema()
+    
+    if DEBUG_MODE: df_cleaned.printSchema()
 
 if __name__ == "__main__":
     main()
