@@ -3,53 +3,147 @@ il repository contiene entrambi i progetti di big data, il secondo (uguale per t
 la struttura riflette una suddivisione netta tra i job (e relative tecnologie utilizzate per ciascuno) e le diversi fasi di sviluppo
 
 dockerfile:
-l'immagine docker è basata su python:3.10-slim-bullseye, un pacchetto light di python che contiene ancora la versione 11 di java (rimossa
-nell'ultima versione)
-per installare hadoop ed hive viene utilizzato il tool aria2 che consente di instaurari connessioni multiple (in questo caso sono
-state instaurate 16 connessioni) con il server Apache e velocizzare il download dei codici sorgente --> le variabili di ambiente, così
-come evenbtuali configurazioni di caso d'uso, sono state configurate secondo quanto detto durante le esercitazioni in aula
-Spark (e di conseguenza SparkSQL) non viene installato direttamente, bensì attraverso il donwload della libreria PySpark
+* l'immagine docker è basata su python:3.10-slim-bullseye, un pacchetto light di python che contiene ancora la versione 11 di java (rimossa
+    nell'ultima versione).
+* per installare hadoop ed hive viene utilizzato il tool aria2 che consente di instaurari connessioni multiple (in questo caso sono
+    state instaurate 16 connessioni) con il server Apache e velocizzare il download dei codici sorgente --> le variabili di ambiente, così
+    come evenbtuali configurazioni di caso d'uso, sono state configurate secondo quanto detto durante le esercitazioni in aula
+* Spark (e di conseguenza SparkSQL) non viene installato direttamente, bensì attraverso il donwload della libreria PySpark --> sono state
+    incluse delle istruzioni per rimuovere la verbosità dei log in avvio
 
 script:
-- run_local.sh è uno script bash utilizzato per buildare l'immagine di docker ed avviare un container che la utilizzi, questo
-è stato fatto per garantire il requisito di riproducibilità --> qualsiasi altro utente non deve far altro che eseguire lo script
-ed attenderne il completamento
-- data_cleaning.py è uno script python per la creazione di un dataset più performante da far elaborare ai job 1,2,3
-    --> la scelta dellen colonne da mantenere è guidata strettamente dagli obiettivi di business del progetto (le 3 analisi da eseguire)
-        * job 1 = calcolare, per ogni compagnia: ritardi min/max/medi in arrivo, tasso di cancellazione e mesi di operatività su singole
-        tratte (o aeroporti di partenza) --> colonne rilevanti: op_unique_carrier (chiave di raggruppamento - nome o codice della compagnia),
-        origin e dest (identificano le tratte servite o l'aeroporto di partenza), arr_delay (per calcolare i ritardi in arrivo), cancelled (
-        per calcolare il tasso di cancellazione), month (per elencare i mesi di operatività)
-        * job 2 = calcolare, per ogni aeroporto e mese: voli per fasce di ritardo in partenza, ritardo medio (partenza e arrivo) per fascia,
-        e le cause più frequenti di ritardo/cancellazione --> colonne rilevanti: origin e month (chiavi di raggruppamento), dep_delay (per creare
-        le fasce di ritardo in partenza e per calcolare il ritardo medio di partenza), arr_delay (per calcolare il ritardo medio in arrivo per
-        ogni fascia), cancellation_code (per trovare le cause di cancellazione più frequenti), carrier_delay, weather_delay, nas_delay,
-        security_delay, late_aircraft_delay (per trovare le cause di ritardo più frequenti)
-        * job 3 = confrontare il ritardo medio in partenza di una compagnia in un aeroporto con il ritardo medio generale di quell'aeroporto
-        --> colonne rilevanti: origin e op_unique_carrier (chiavi di raggruppamento per creare le coppie), dep_delay (per calcolare il ritardo
-        medio in partenza - sia della compagnia che complessivo dell'aeroporto - per fare le differenze e il ranking), arr_delay (per il
-        calcolo del ritardo medio in arrivo richiesto dal report), cancelled (per calcolare il tasso di cancellazione della coppia)
-    --> .withColumn("cancelled", col("cancelled").cast("integer")): il campo cancelled è un flag binario, un volo è o cancellato (1) o non
-    cancellato (0)
-    --> df_cleaned.fillna(0.0, subset=delay_causes): trasforma tutti i Null in 0.0 nelle specifiche colonne delle "cause di ritardo". Sostituire
-    permette, ad esempio, di fare facilmente le somme totali dei minuti persi per ogni singola causa nel Job 2
+1. run_local.sh è uno script bash utilizzato per buildare l'immagine di docker ed avviare un container che la utilizzi, questo è stato fatto
+    per garantire il requisito di riproducibilità --> qualsiasi altro utente non deve far altro che eseguire lo script ed attenderne il
+    completamento
+2. data_cleaning.py è uno script python per la creazione di un dataset più performante da far elaborare ai job 1,2,3   
+    --> Operazioni implementate:
+        1. Eliminazione di record duplicati --> (effettuata prima del column pruning per assicurare la rimozione dei duplicati effettivi) garantisce
+            che errori a monte non sporchino le aggregazione e le medie finali
+        2. Selezione delle colonne rilevanti ai fini delle analisi + Casting dei valori --> riduzione del dataset dalle 35 colonne originali alle
+            sole 15 rilevanti (scelta delle colonne da mantenere è guidata strettamente dagli obiettivi di business del progetto (le 3 analisi da
+            eseguire), in totale sono state mantenute le colonne op_unique_carrier (1,3) + origin (1,2,3) + dest (1) + month (1,2) + dep_delay (2,3)
+            + arr_delay (1,2,3)+ cancelled (1,2,3) + cancellation_code (2) + carrier_delay... (2)) + forzatura delle feature testuali nei formati
+            corretti (confronto effettuato tramite il dizionario dei dati) – normalizzare il tipo di dato consente di applicare operatori matematici
+            e statistici durante le successive query di analytics
+        3. Trasformazione di attributi temporali --> creazione della nuova feature hour, estratta dall'attributo temporale originale
+            crs_dep_time (che si presentava in formati come "1430" per le 14:30 - dividendo per 100 e tenendo la parte intera) - l'attributo
+            originale era troppo granulare per fare aggregazioni significative e viene rimosso al termine – + gestione del subset delle cause di
+            ritardo (i valori nulli non sono errori, indicano semplicemente l'assenza di ritardo; la sostituzione con 0.0 permette di calcolare
+            metriche statistiche corrette)
+        4. Filtraggio dei record incompleti o non significativi --> verifica effettuata sui voli cancellati (che devono avere codice di cancellazione);
+            sulla logica base dei voli (che devono avere definita una distanza, un origine ed una destinazione); sui voli operati (che devono avere
+            flag di cancellazione falso, codice di cancellazione nullo così come ritardo in partenza e in arrivo) --> nota: in questo specifico filtro
+            sono stati rimossi anche i voli dirottati (sprovvisti del dato di ritardo in arrivo), questa scelta architetturale garantisce l'assoluta
+            integrità delle statistiche sui ritardi, accettando al contempo una sottostima trascurabile (inferiore allo 0,25%) sul conteggio dei voli
+            operati, statisticamente irrilevante ai fini dell'analisi
+        5. NON FATTO: Trasformazione di attributi categorici --> le variabili categoriche sono state mantenute nel loro formato testuale nativo,
+            approccio ottimale per mantenre intatta la leggibilità del dato e per permettere raggruppamenti logici naturali
+    --> Formato dei risultati: si è scelto di salvare i dati processati in formato parquet per:
+        a. motivazione di ecosistema: rappresenta il formato nativo e di default per il motore Spark SQL e si integra in modo ottimale con Apache Hive,
+            questo consente di eliminare i colli di bottiglia legati alla serializzazione/deserializzazione dei dati testuali, massimizzando il throughput
+            computazionale
+        b. sfruttare l'archiettura colonnare: le tecnologie scelte possono leggere esclusivamente i blocchi specificati dalle query, ignorando completamente
+            tutto il resto ed abbattendo i tempi di lettura
+        c. sfruttare compressione dei dati: i dataset risultanti occuperanno una frazione dello spazio su disco rispetto al file CSV originale,
+            risparmiando storage e accelerando il trasferimento di rete nel cluster
+        d. conservazione dello schema: parquet salva i metadati e lo schema (tipi di dato) all'interno del file stesso quindi le operazioni eseguite
+            dai job futuri possono operare istantaneamente e con certezza matematica, senza dover fare inferenze costose e senza rischiare errori di casting.
+
+EDA:
+1. come prima cosa vengono definite le librerie utilizzate durante l'esplorazione ed alcune impostazioni per i grafici
+2. viene avviata una sessione Spark con nome "FlightData_Full_EDA" e viene impostato spark per utilizzare le risorse dell'host tramite
+    l'impostazione local[*], inoltre viene dichiarata a 4gb la dimensione RAM della jvm
+3. vengono create tre variabili (df_full, df_sample, df_dict) che contengono i file csv rispettivamente del dataset completo, del sample fornito
+    e del dizionario dei dati --> tutti file scaricati da kaggle e forniti insieme al dataset completo
+4. l'analisi dimensionale viene effettuata sull'intero dataset tramite funzioni native di PySpark (.count() e .columns) per un totale di 7.079.081
+    righe x 35 colonne in un tempo nell'ordine dei decimi di secondo
+5. l'analisi strutturale viene effettuata sul dizionario del dataset, che, a differenza del dataset completo e del sample, contiene un indicazione
+    sul tipo di dato di ciascuna colonna; la stampa delle prime 5 righe viene effettuata invece sul dataset completo.
+6. l'analisi delle colonne a varianza zero viene effettuata sul dataset completo (con costo computazionale nell'ordine del minuto) e tramite il
+    confronto tra il valore minimo ed il valore massimo rilevato per ciascuna colonna (il calcolo di min e max richiede uno shuffle leggero su spark
+    ed il confronto ha costo unitario, questo riduce notevolemnte il carico computazione migliorando l'efficienza operazionale) --> rimane
+    concettualmente corretto poiché l'obbiettivo è trovare solo le colonne con varianza nulla ed una colonna con questa proprietà ha per forza min e
+    max coincidenti.
+7. l'analisi della ridondanza viene effettuata sul dataset completo, per ridurre il costo computazionale viene utilizzata la funzione
+    approx_count_distinct che effettua una stima con il 95% di accuratezza.
+8. l'analisi dei duplicati viene effettuata sul dataset completo e distingue il calcolo tra duplicati esatti (record coincidenti bit per bit) e sui
+    duplicati logici (record non coincidenti che rappresentano lo stesso volo fisico), in particolare quest'ultima verifica confronta i valori di ciascun
+    record sulle colonne "fl_date", "crs_dep_time", "op_unique_carrier", "op_carrier_fl_num", "origin", "dest" --> un volo è fisicamente lo stesso se
+    è schedulato lo stesso giorno alla stessa ora, appartiene alla stessa compagnia, ha lo stesso identificativo e parte e raggiunge gli stessi aeroporti
+9. l'analisi della sparsità (sia verticale che orizzontale, con trashold all'80%) viene effettuata sul dataset completo (sarebbe potuto essere fatto anche
+    sul sample, ma per ragioni legate al calcolo di alcune statistiche successive - che fanno uso dell'output prodotto in questa fase - si è deciso di
+    "pagare" tempo computazionale, nell'ordine del minuto) --> vengono cercate le colonne ed i record (eccezion fatta per quelli che hanno flag di
+    cancellazione pari ad 1 i cui valori nulli sono comprensibili) che hanno più dell'80% di valori nulli
+10. l'analisi dei valori nulli viene effettuata sul dataset completo, con focus sulle colonne target (ovvero quelle che contengono il maggior
+    contenuto informativo rispetto alle richieste dei job di progetto)
+11. l'analisi delle cancellazioni viene effettuata sull'intero dataset e mira ad evidenziare quale è la causa principale delle cancellazioni
+12. l'analisi delle cause di ritardo viene effettuata sull'intero dataset e mira ad evidenziare quale è la causa principale del ritardo
+13. l'analisi sulla distribuzione dei ritardi viene effettuata sull'intero dataset ed ha una granularità che permette di categorizzare i ritardi dai
+    più blandi (<15 min) ai più significativi (>60 min)
+14. l'identificazione degli otliers viene effettuata sul dataset completo e avviene tramite il calcolo delle statistiche descrittive, il focus principale
+    è sugli outliers legati ai ritardi
+15. l'analisi sull'impatto degli outliers sulla distribuzione dei ritardi viene effettuata sul dataset sample arrichitto tramite i top 50 migliori e
+    peggiori ritardi estratti dal dataset completo (outliers reali)
+16. l'analisi dei ritardi per ciascuna compagnia aerea avviene sull'intero dataset (con colonne appostamente filtrate per imporre un ordinamento e
+    ridurre i costi computazionali) e mira ad evidenziare quale compagnia aerea è maggiormente soggetta a ritardi --> in questa specifica analisi gli
+    outliers hanno un impatto importante
+17. l'analisi temporale dei ritardi in partenza (in particolare rispetto ai mesi e rispetto alle ore del giorno) viene effettuata sull'intero dataset
+    e mira ad intenficare quale fascia stagionale e oraria è maggiormente soggetta a ritardi --> in particolare la fascia oraria consente di dedurre
+    informazioni importanti circa l'effetto a cascata dei ritardi accumulati durante le ore dle giorno
+18. l'analisi dei guadagni temporali rispetto al ritardo in partenza viene effettuata sul dataset sample attraverso la correlazione tra ritardi
+    in partenza e riatrdi in arrivo dello stesso volo
+
+Job 1:
+* richiesta: generare le statistiche di ciascuna compagnia aerea presente nel dataset, indicando, per ogni compagnia:
+    (a) il nome o codice della compagnia; --> op_unique_carrier come chiave di raggruppamento principale
+    (b) una lista di aeroporti di partenza o tratte servite dalla compagnia, --> origin per il raggruppamento per aeroporto
+                                                                            --> dest (+ origin) per il raggruppamento per tratta
+    indicando per ciascuno di essi:
+        (i) il numero di voli presenti nel dataset; --> count del raggruppamento
+        (ii) il ritardo minimo, massimo e medio in arrivo; --> arr_delay su cui vengono applicate le funzioni min, max ed avg
+        (iii) il tasso di cancellazione dei voli; --> cancelled su cui viene applicata avg
+        (iv) l’elenco dei mesi in cui quella compagnia opera su quell’aeroporto o tratta. --> month per creare l'elenco di valori univoci
+* tecnologia:
+* logica:
+
+Job 2:
+* richiesta: generare un report contenente, per ciascun aeroporto di partenza e per ciascun mese: --> origin e month
+    (a) il numero di voli appartenenti a tre fasce di ritardo in partenza: --> dep_delay per la creazione delle 3 fasce
+        (i) basso: meno di 15 minuti
+        (ii) medio: tra 15 e 60 minuti
+        (iii) alto: oltre 60 minuti,
+    (b) per ciascuna fascia, il ritardo medio in partenza e il ritardo medio in arrivo --> dep_delay + arr_delay
+    (c) le tre cause di cancellazione --> cancelled + cancellation_code 
+         o ritardo più frequenti, se disponibili nel dataset. --> carrier_delay + weather_delay + nas_delay + security_delay + late_aircraft_delay
+* tecnologia:
+* logica:
+
+Job 3:
+* richiesta: generare, per ciascun aeroporto di partenza e per ciascuna compagnia aerea,
+un report di performance che confronti il comportamento della compagnia in quell’aeroporto con il comportamento medio di
+tutte le compagnie che operano nello stesso aeroporto. --> origin + op_unique_carrier
+Per ciascuna coppia (aeroporto di partenza, compagnia), il report deve contenere:
+    (a) il numero di voli operati da quella compagnia in quell’aeroporto; --> count
+    (b) il ritardo medio in partenza e il ritardo medio in arrivo; --> dep_delay + arr_delay
+    (c) il tasso di cancellazione; --> cancelled
+    (d) la differenza tra il ritardo medio in partenza della compagnia e il ritardo medio in partenza complessivo di
+        quell’aeroporto; --> avg(dep_delay).groupby(origin, op_unique_carrier) - avg(dep_delay).groupby(origin)
+    (e) la posizione in classifica della compagnia in quell’aeroporto in base al ritardo medio in partenza, dalla migliore
+        alla peggiore. --> funzione di ranking
+* tecnologia:
+* logica:
 
 Flusso di lavoro:
+* è stata configurata l'immagine docker che verrà utilizzata all'interno del (e successivamente dei) container per garantire il requisito
+    di riproducibilità. nelle fasi iniziali tutte le operazioni sono state eseguite sul sample del dataset
 * dopo aver configurato correttamente l'ambiente contanerizzato ed aver verificato che tutto funzionasse, è stato effettuato il
-download del dataset tramite Kaggle cURL ed è stata utilizzata l'IA (Gemini Pro) per effettuare un EDA approssimativa, per valutare la
-struttura, sul dataset sample fornito.
-* è stata effettuata un'EDA sul dataset completo per supportare e giustificare la fase di data preparation --> è stato creato un
-ambiente virtuale nel quale sono state installate le librerie necessarie per creare un notebook jupyter (per questioni di performance è
-stata scelta la libreria pyspark per il processamento del dataset è una scelta architetturale mirata: permette il processamento distribuito
-(sfruttando tutti i core della CPU) e l'esecuzione lazy, ottimizzando il consumo di memoria per un dataset di oltre 7 milioni di record. le
-classiche pandas, matplotlib e seaborn vengono utilizzate per la creazione e la visualizzazione dei grafici).
-l'EDA si è così strutturata:
-    1. caricamento ed analisi dimensionale del dataset completo
-    2. analisi dei valori nulli: le colonne selezionate per l'analisi corrispondono alle Target Variables del progetto
-        * dep_delay, arr_delay --> cuore del progetto, sono la metrica assoluta da prevedere o analizzare
-        * cancelled --> colonna "Bussola", un volo nel mondo reale può fare solo due cose: partire (con o senza ritardo) o essere cancellato.
-        * cancellation_code --> colonna prova per la coerenza del dataset
-* a seguito di ciò, ed in ottica futura (analisi dei ritardi), si è scelto di creare un dataset in formato .parquet (anziché rimuovere valori,
-modificare i campi o splittare in dataset con proprietà diverse), molto più compresso e veloce del CSV, in cui i ritardi dei valori
-cancellati vengono lasciati a Null. questo perché, sia in HQL che in PySpark, le funzioni di aggregazione che verrano utilizzate
-ignorano automaticamente i valori Null. --> script data_cleaning.py
+    download del dataset tramite Kaggle cURL
+* è stata effettuata un'EDA sul dataset completo per supportare e giustificare la fase di data preparation --> è stato utilizzato un ambiente
+    virtuale nel quale sono state installate le librerie necessarie per creare un notebook jupyter.
+    Per questioni di performance è stata scelta la libreria pyspark per il processamento del dataset, scelta architetturale mirata: permette
+    il processamento distribuito (sfruttando tutti i core della CPU) e l'esecuzione lazy (ottimizzando il consumo di memoria). le classiche
+    librerie pandas, matplotlib e seaborn vengono utilizzate per la creazione e la visualizzazione dei grafici.
+* con le informazioni ottenute tramite l'EDA si è proceduto a scrivere lo script data_cleaning.py che si occupa della pulizia del dataset
+* dopo aver completato la pulizia, è stato pensato uno script (generate_test_datasets.py) in grado di partizionare il dataset processato
+    in porzioni di dimensioni minori (10%, 25%, 50%, 75%) e maggiori (150%, 200%, 300%) che potessero essere utilizzati per effettuare test
+    futuri di scalabilità su singolo nodo e su cluster
