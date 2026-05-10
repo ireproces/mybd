@@ -16,16 +16,17 @@ public class Job1Driver {
 
     public static void main(String[] args) throws Exception {
         
-        // 1. Parameters checking
-        // 2 parameters expected: [input_path] [output_path]
+        // 1. Parameters checking: [input_path] [output_path]
+        // [input_path] is the path to the input parquet format dataset
+        // [output_path] is the path to the output directory where the results will be saved
         if (args.length != 2) {
-            System.err.println("Usage: Job1Driver <input path> <output path>");
+            System.err.println("EXECUTION ERROR: Missing parameters.");
             System.exit(-1);
         }
 
         // 2. Job configuration and initialization
         Configuration conf = new Configuration();
-        Job job = Job.getInstance(conf, "Flight Delay - Job 1 (Carriers and Routes)");
+        Job job = Job.getInstance(conf, "Flight Delay - Job 1 (Carriers and Origin Airports)");
         
         // tells Hadoop what is the main class in the Jar file
         job.setJarByClass(Job1Driver.class);
@@ -48,8 +49,6 @@ public class Job1Driver {
         // 7. Execution and Time Measurement
         System.out.println("=================================================");
         System.out.println(" Starting Job 1 - MapReduce...");
-        System.out.println(" Input: " + args[0]);
-        System.out.println(" Output: " + args[1]);
         System.out.println("=================================================");
 
         // starts the timer
@@ -72,9 +71,6 @@ public class Job1Driver {
             
             System.out.println("=================================================");
             System.out.println(" Job completed successfully!");
-            System.out.println(" Total execution time: " + totalDuration + " seconds");
-            System.out.println(" Cumulative Map time: " + (mapTime / 1000.0) + " seconds");
-            System.out.println(" Cumulative Reduce time: " + (reduceTime / 1000.0) + " seconds");
             System.out.println("=================================================");
 
             // automatic performance report csv generation and saving
@@ -104,15 +100,13 @@ public class Job1Driver {
                 // writes the performance metrics in csv format
                 out.printf("%s,%.3f,%d,%d\n", datasetName, totalDuration, mapTime, reduceTime);
                 out.close();
-                
-                System.out.println(" Metrics saved in: " + perfFile);
             } catch (Exception e) {
-                System.err.println(" Error in saving metrics: " + e.getMessage());
+                System.err.println(" ERROR in saving metrics: " + e.getMessage());
             }
 
             System.exit(0);
         } else {
-            System.out.println(" Error: The Job has failed.");
+            System.out.println(" EXECUTION ERROR: Job has failed.");
             System.exit(1);
         }
     }

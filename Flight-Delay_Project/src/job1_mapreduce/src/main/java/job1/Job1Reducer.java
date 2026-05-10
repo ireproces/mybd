@@ -6,81 +6,80 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 
 // Each Reducer base class is defined by 4 parameters (Generics):
-// Input Key - Text because has to match the Mapper's output key type
-// Input Value - Text because has to match the Mapper's output value type
-// Output Key - Text because the reducer will output strings of "Carrier, Airport" pairs
-// Output Value - Text because the reducer will output a formatted string with all the metrics
+// Input Key -> Text, must match the mapper's output key type
+// Input Value -> Text, must match the mapper's output value type
+// Output Key -> Text, reducer will output strings keys
+// Output Value -> Text, reducer will output string data
 public class Job1Reducer extends Reducer<Text, Text, Text, Text> {
 
     // output variable
     private Text resultValue = new Text();
 
-    @Override
-    protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
-        
-        // counters and variables for:
-        // a. total flights operated by this carrier,airport ()
+    // helper class for saving statistics
+    private static class AirportStats {
         int totalFlights = 0;
-        // b. total cancelled flights by this carrier,airport
         int totalCancelled = 0;
-        // c. minimum and maximum arrival delays
+        float sumDelay = 0.0f;
+        int validDelayCount = 0;
         float minDelay = Float.MAX_VALUE;
         float maxDelay = -Float.MAX_VALUE;
-        // d. total sum of delays (for average calculation)
-        float sumDelay = 0.0f;
-        // e. total flight with valid delay (non-cancelled) (for average calculation)
-        int validDelayCount = 0;
-        // f. set to track unique months of operation
-        // HashSet automatically handles duplicates
         HashSet<Integer> months = new HashSet<>();
+    }
 
-        // Iterate over all flights of the specific pair carrier,airport
+    @Override
+    protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+
+        AirportStats stats = new AirportStats();
+        
+        // 1. Aggregation
+        // iterates over all values of the specific <key,value> pair
         for (Text val : values) {
 
-            // (i) counts total flights for this carrier,airport
-            totalFlights++;
-            
             // decodes the string of values emitted by the Mapper
             String[] parts = val.toString().split(",");
-            // converts the string values back to their original types
+
             float arrDelay = Float.parseFloat(parts[0]);
             int cancelled = Integer.parseInt(parts[1]);
             int month = Integer.parseInt(parts[2]);
 
+            // (i) counts total flights operated
+            stats.totalFlights++;
             // (iv) adds the month to the set
-            months.add(month);
+            stats.months.add(month);
 
             // counts cancelled flights
             if (cancelled == 1) {
-                totalCancelled++;
+                stats.totalCancelled++;
             // processes only non-cancelled flights for delay metrics
             } else {
-                // (ii) updates min and max values
-                if (arrDelay < minDelay) minDelay = arrDelay;
-                if (arrDelay > maxDelay) maxDelay = arrDelay;
                 // updates sum and count for average calculation
-                sumDelay += arrDelay;
-                validDelayCount++;
+                stats.sumDelay += arrDelay;
+                stats.validDelayCount++;
+                // (ii) updates min and max values
+                if (arrDelay < stats.minDelay) stats.minDelay = arrDelay;
+                if (arrDelay > stats.maxDelay) stats.maxDelay = arrDelay;
             }
         }
 
-        // Calculates final metrics
-        // (ii) average delay
-        float avgDelay = (validDelayCount > 0) ? (sumDelay / validDelayCount) : 0.0f;
+        // 2. Calculation of final metrics
         // (iii) cancellation rate
-        float cancelRate = (float) totalCancelled / totalFlights;
-
+        float cancelRatePct = ((float) stats.totalCancelled / stats.totalFlights) * 100;
+        float avgDelay = 0.0f;
+        
         // handles the case where all flights are cancelled (no valid delay data)
-        if (validDelayCount == 0) {
-            minDelay = 0.0f;
-            maxDelay = 0.0f;
+        if (stats.validDelayCount == 0) {
+            stats.minDelay = 0.0f;
+            stats.maxDelay = 0.0f;
+        } else {
+            // (ii) average delay
+            avgDelay = stats.sumDelay / stats.validDelayCount;
         }
 
-        // Format the output to make it readable
-        String formattedOutput = String.format("Total flights operated: %d \t Min Arrival Delay: %.2f \t Max Arrival Delay: %.2f \t Avg Arrival Delay: %.2f \t Cancellation Rate: %.4f \t Months of operation: %s", 
-                                                totalFlights, minDelay, maxDelay, avgDelay, cancelRate, months.toString());
+        // 3. Output construction
+        String formattedStats = String.format("Flights Operated: %d | Min Arr Delay: %.2f min | Max Arr Delay: %.2f min | Avg Arr Delay: %.2f min | Cancel Rate: %.2f%% | Months of operation: %s",
+                stats.totalFlights, stats.minDelay, stats.maxDelay, avgDelay, cancelRatePct, stats.months.toString());
         
-        resultValue.set(formattedOutput);
+        resultValue.set(formattedStats);
         
         context.write(key, resultValue);
     }

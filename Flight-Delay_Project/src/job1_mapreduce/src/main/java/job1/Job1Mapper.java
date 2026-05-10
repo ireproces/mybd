@@ -6,22 +6,21 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.parquet.example.data.Group;
 
 // Each Mapper base class is defined by 4 parameters (Generics):
-// Input Key - Void because it should be ignored
-// Input Value - Group because the input data is in Parquet format
-// Output Key - Text because the mapper will output strings of "Carrier, Airport" pairs
-// Output Value - Text because the mapper will output strings of "Delay, Canceled, Month" data
+// Input Key -> Void, there is no input key
+// Input Value -> Group, input data is in Parquet format
+// Output Key -> Text, mapper will output strings keys
+// Output Value -> Text, mapper will output strings data
 public class Job1Mapper extends Mapper<Void, Group, Text, Text> {
 
     // output variables
     private Text outKey = new Text();
     private Text outValue = new Text();
 
-    // protected methods are accessible within the same package and by subclasses
     // the map method is called for each row of input data
     @Override
     protected void map(Void key, Group value, Context context) throws IOException, InterruptedException {
         try {
-            // 1. Categorical Keys Extraction
+            // 1. Keys Extraction
             // index is 0 because parquet rows are lists and not arrays
             String carrier = value.getString("op_unique_carrier", 0);
             String origin = value.getString("origin", 0);
@@ -48,7 +47,7 @@ public class Job1Mapper extends Mapper<Void, Group, Text, Text> {
             outValue.set(compositeValue);
 
             // 5. Emission
-            // Send the key-value pair to the Shuffle & Sort phase
+            // sends the <key,value> pair to the Shuffle & Sort phase
             context.write(outKey, outValue);
 
         } catch (Exception e) {
