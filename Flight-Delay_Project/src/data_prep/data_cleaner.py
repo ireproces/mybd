@@ -1,3 +1,6 @@
+import time
+import os
+import csv
 import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
@@ -175,17 +178,20 @@ def save_data(df, output_path):
 def main():
 
     # 0. Command-line arguments checking
-    # if the number of arguments is not 3 (script name + 2 parameters), stop the execution
-    if len(sys.argv) != 3:
-        print("EXECUTION ERROR: Missing parameters.")
+    # if the number of arguments is not 4, stop the execution
+    if len(sys.argv) != 4:
+        print("EXECUTION ERROR: Usage: data_cleaner.py <input_path> <output_path> <environment>")
         sys.exit(1)
 
-    # dynamic input and output paths
+    # dynamic input and output paths and environment name
     input_path = sys.argv[1] 
     output_path = sys.argv[2]
+    environment = sys.argv[3]
 
     # --- Data Cleaning Pipeline ---
     print("Starting the Data Cleaning Pipeline...")
+
+    start_time = time.time()
 
     # 1. Initialize SparkSession
     print("\nStarting the Phase 1...")
@@ -226,9 +232,34 @@ def main():
     df_cleaned = save_data(df_filtered, output_path)
     print("Phase 7 completed.")
 
+    end_time = time.time()
+    duration = end_time - start_time
+
     print("\nData Preparation completed successfully!\n")
     
     if DEBUG_MODE: df_cleaned.printSchema()
+
+    print("Calculating final metrics for the report...")
+    initial_records = df_raw.count()
+    final_records = df_cleaned.count()
+    dropped_records = initial_records - final_records
+
+    # Saving performances
+    perf_dir = "/app/results/data_prep"
+    perf_file = f"{perf_dir}/data_cleaner_performance.csv"
+    
+    if not os.path.exists(perf_dir):
+        os.makedirs(perf_dir)
+        
+    is_new = not os.path.exists(perf_file)
+    
+    with open(perf_file, "a", newline="") as f:
+        writer = csv.writer(f)
+        if is_new:
+            writer.writerow(["Environment", "Dataset", "Execution_Time_Sec", "Initial_Records", "Final_Records", "Dropped_Records"])
+        
+        dataset_name = os.path.basename(sys.argv[1])
+        writer.writerow([environment, dataset_name, f"{duration:.3f}", initial_records, final_records, dropped_records])
 
 if __name__ == "__main__":
     main()
