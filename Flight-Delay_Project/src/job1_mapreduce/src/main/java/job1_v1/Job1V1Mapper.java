@@ -1,4 +1,4 @@
-package job1;
+package job1_v1;
 
 import java.io.IOException;
 import org.apache.hadoop.io.Text;
@@ -10,7 +10,7 @@ import org.apache.parquet.example.data.Group;
 // Input Value -> Group, input data is in Parquet format
 // Output Key -> Text, mapper will output strings keys
 // Output Value -> Text, mapper will output strings data
-public class Job1Mapper extends Mapper<Void, Group, Text, Text> {
+public class Job1V1Mapper extends Mapper<Void, Group, Text, Text> {
 
     // output variables
     private Text outKey = new Text();

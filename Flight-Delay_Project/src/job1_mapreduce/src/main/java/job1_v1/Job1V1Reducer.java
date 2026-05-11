@@ -1,4 +1,4 @@
-package job1;
+package job1_v1;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -10,7 +10,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 // Input Value -> Text, must match the mapper's output value type
 // Output Key -> Text, reducer will output strings keys
 // Output Value -> Text, reducer will output string data
-public class Job1Reducer extends Reducer<Text, Text, Text, Text> {
+public class Job1V1Reducer extends Reducer<Text, Text, Text, Text> {
 
     // output variable
     private Text resultValue = new Text();
