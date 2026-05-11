@@ -1,3 +1,6 @@
+import time
+import os
+import csv
 import sys
 from pyspark.sql import SparkSession
 
@@ -36,8 +39,13 @@ def generate_sub_samples(df_100, output_dir, base_count=None):
     print(" Generating sub-sampled datasets...")
     
     fractions = {"10": 0.10, "25": 0.25, "50": 0.50, "75": 0.75}
+
+    # dictionary to save the generation times of each dataset
+    timings = {}
     
     for name, frac in fractions.items():
+
+        start_time = time.time()
 
         # defines the output path for the current sub-sampled dataset
         out_path = f"{output_dir}flight_{name}.parquet"
@@ -46,74 +54,83 @@ def generate_sub_samples(df_100, output_dir, base_count=None):
         df_sampled = df_100.sample(withReplacement=False, fraction=frac, seed=42)
 
         df_sampled.write.mode("overwrite").parquet(out_path)
-        print(f"  {name}% dataset generated and saved!")
+
+        end_time = time.time()
+        timings[f"flight_{name}"] = end_time - start_time
+
+        print(f"  {name}% dataset generated and saved in {timings[f'flight_{name}']:.2f}s!")
         
         # Debugging informations
         if DEBUG_MODE and base_count is not None:
             print(f"   Expected rows: ~{int(base_count * frac)} | Actual rows: {df_sampled.count()}")
 
     print(" Sub-sampling generation completed successfully!")
+    return timings
 
 # function to generate and save over-sampled datasets (150%, 200%, 300%)
 def generate_over_samples(df_100, output_dir, base_count=None):
 
     print(" Generating over-sampled datasets...")
 
+    timings = {}
+
     # --- 150% ---
+    start_time = time.time()
     # output path for the 150% dataset
     out_150 = f"{output_dir}flight_150.parquet"
-
     # random sample of 50% of the original dataset
     df_50 = df_100.sample(withReplacement=False, fraction=0.50, seed=42)
     # union the original dataset with the 50% sample to create the 150% dataset
     df_150 = df_100.union(df_50)
-
     df_150.write.mode("overwrite").parquet(out_150)
-    print(f"  150% dataset generated and saved!")
+    timings["flight_150"] = time.time() - start_time
+    print(f"  150% dataset generated and saved in {timings['flight_150']:.2f}s!")
     
     if DEBUG_MODE and base_count is not None:
         print(f"   Expected rows: ~{int(base_count * 1.5)} | Actual rows: {df_150.count()}")
 
     # --- 200% ---
+    start_time = time.time()
     # output path for the 200% dataset
     out_200 = f"{output_dir}flight_200.parquet"
-    
     # union the original dataset with itself to create the 200% dataset
     df_200 = df_100.union(df_100)
-
     df_200.write.mode("overwrite").parquet(out_200)
-    print(f"  200% dataset generated and saved!")
+    timings["flight_200"] = time.time() - start_time
+    print(f"  200% dataset generated and saved in {timings['flight_200']:.2f}s!")
 
     if DEBUG_MODE and base_count is not None:
         print(f"   Expected rows: {base_count * 2} | Actual rows: {df_200.count()}")
 
     # --- 300% ---
+    start_time = time.time()
     # output path for the 300% dataset
     out_300 = f"{output_dir}flight_300.parquet"
-    
     # union the 200% dataset with the original dataset to create the 300% dataset
     df_300 = df_200.union(df_100)
-
     df_300.write.mode("overwrite").parquet(out_300)
-    print(f"  300% dataset generated and saved!")
+    timings["flight_300"] = time.time() - start_time
+    print(f"  300% dataset generated and saved in {timings['flight_300']:.2f}s!")
 
     if DEBUG_MODE and base_count is not None:
         print(f"   Expected rows: {base_count * 3} | Actual rows: {df_300.count()}")
 
     print(" Over-sampling generation completed successfully!")
+    return timings
 
 # function to orchestrate the entire process 
 def main():
 
     # 0. Command-line arguments checking
-    # if the number of arguments is not 3 (script name + 2 parameters), stop the execution
-    if len(sys.argv) != 3:
-        print("EXECUTION ERROR: Missing parameters.")
+    # if the number of arguments is not 4, stop the execution
+    if len(sys.argv) != 4:
+        print("EXECUTION ERROR: Usage: data_generator.py <input_path> <output_dir> <environment>")
         sys.exit(1)
 
-    # dynamic input and output paths
+    # dynamic input and output paths and environment name
     input_path = sys.argv[1] 
     output_dir = sys.argv[2]
+    environment = sys.argv[3]
 
     # ensures the output directory ends with a slash to avoid path concatenation errors
     if not output_dir.endswith("/"):
@@ -121,6 +138,8 @@ def main():
 
     # --- Sampling Dataset Creation Pipeline ---
     print("Starting the Sample Generation Pipeline...")
+
+    start_total = time.time()
 
     # 1. Initialize SparkSession
     print("\nStarting the Phase 1...")
@@ -139,15 +158,37 @@ def main():
 
     # 3. Sub-sampling generation
     print("\nStarting the Phase 3...")
-    generate_sub_samples(df_100, output_dir, base_count)
+    sub_timings = generate_sub_samples(df_100, output_dir, base_count)
     print("Phase 3 completed.")
 
     # 4. Over-sampling generation
     print("\nStarting the Phase 4...")
-    generate_over_samples(df_100, output_dir, base_count)
+    over_timings = generate_over_samples(df_100, output_dir, base_count)
     print("Phase 4 completed.")
 
+    end_total = time.time()
+    total_duration = end_total - start_total
+
     print("\nDatasets Generation completed successfully!\n")
+
+    all_timings = {**sub_timings, **over_timings}
+
+    # Saving performances
+    perf_dir = "/app/results/data_prep"
+    perf_file = f"{perf_dir}/data_generator_performance.csv"
+    
+    if not os.path.exists(perf_dir):
+        os.makedirs(perf_dir)
+        
+    is_new = not os.path.exists(perf_file)
+    
+    with open(perf_file, "a", newline="") as f:
+        writer = csv.writer(f)
+        if is_new:
+            writer.writerow(["Environment", "Generated_Dataset", "Execution_Time_Sec"])
+        
+        for dataset_name, duration in all_timings.items():
+            writer.writerow([environment, dataset_name, f"{duration:.3f}"])
 
 if __name__ == "__main__":
     main()
