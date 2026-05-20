@@ -1,6 +1,2 @@
 pyspark==3.5.8
 pandas==2.2.1
-
-jupyter==1.0.0
-matplotlib
-seaborn
