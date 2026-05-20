@@ -29,7 +29,7 @@ Note - Spark: l'intero motore Apache Spark pre-compilato è contenuto nella libr
 - Hadoop 3.4.1
 - Hive 2.3.9
 - Spark 3.5.8
-- Docker 4.71.0
+- Docker 4.73.0
 - Python 3.10.18
 - Pandas 2.2.1
 
@@ -38,15 +38,27 @@ Note - Spark: l'intero motore Apache Spark pre-compilato è contenuto nella libr
 1. effettuare il download del dataset al seguente [https://www.kaggle.com/datasets/hrishitpatil/flight-data-2024?resource=download]link e posizionare il dataset completo (`flight_data_2024.csv`) nella cartella del repo `dataset/raw/`
 
 ### Esecuzione standalone
-2. posizionarsi nella cartella `/scripts` ed eseguire lo script `run_local.sh` per avviare la build dell'immagine e, successivamente, l'avvio del container Docker --> verrà creato un volume contenente il progetto direttamente all'interno del container
-2.1. per verificare che tutto sia stato configurato correttamente, eseguire i commandi `java -version`, `python --version` e
-`python -c "import pandas; print(pandas.__version__)"`, `hadoop version`, `hive --version`, `pyspark --version` e verificare che i comandi siano riconosciuti e che le versioni coincidano
-3. dalla shell del container eseguire il comando:
-    * `spark-submit src/data_prep/data_cleaning.py dataset/raw/flight_data_2024_sample.csv dataset/processed/flight_sample.parquet` $\to$ esecuzione dello script sul sample fornito da kaggle
-    * `spark-submit src/data_prep/data_cleaning.py dataset/raw/flight_data_2024.csv dataset/processed/flight_100.parquet` $\to$ esecuzione dello script sul dataset fornito da kaggle
-3.1. per visualizzare le prime 5 righe del dataset processato eseguire il comando `pyspark` (per entrare nella console interattiva) e successivamente `df = spark.read.parquet("/app/dataset/processed/flight_<name>.parquet")`, `df.show(5)`. per uscire dalla console digitare `exit()`
-4. dalla shell container eseguire il comando:
-    * `spark-submit scripts/generate_test_datasets.py dataset/processed/flight_100.parquet dataset/processed/` $\to$ esecuzione dello script per generare i dataset sample
+2. posizionarsi nella cartella `/scripts` ed eseguire lo script `run_local.sh` per avviare la build dell'immagine e, successivamente, l'avvio del container Docker (verrà creato un volume nel container, all'interno di `/app`, contenente il progetto)
+2.1. per verificare che tutto sia stato configurato correttamente, eseguire i commandi `java -version`, `python --version` e `python -c "import pandas; print(pandas.__version__)"`, `hadoop version`, `hive --version`, `pyspark --version`
+
+3. dalla shell del container eseguire il comando per la pulizia del dataset grezzo:
+   `spark-submit src/data_prep/data_cleaner.py dataset/raw/flight_data_2024.csv dataset/processed/flight_100.parquet Local_1`
+   - verificare che il dataset processato sia stato creato correttamente nel percorso `/dataset/processed/flight_100.parquet`
+   - verificare che le statistiche sulle performance siano state create e salvate correttamente nel percorso `/results/data_prep/data_cleaner_performance.csv`
+3.1. per visualizzare le prime 5 righe del dataset processato eseguire il comando `pyspark` (per entrare nella console interattiva) e successivamente
+    - `df = spark.read.parquet("/app/dataset/processed/flight_100.parquet")`
+    - `df.show(5)`
+    per uscire dalla console digitare `exit()`
+
+4. dalla shell container eseguire il comando per generare i dataset sample:
+    `spark-submit src/data_prep/data_generator.py dataset/processed/flight_100.parquet dataset/processed/ Local_1`
+    - verificare che i dataset siano stati correttamente creati e salvanti nel percorso `dataset/processed/flight_<perc>.parquet`
+    - verificare che le statistiche sulle performance siano state create e salvate correttamente nel percorso `/results/data_prep/data_generator_performance.csv`
+
+5. posizionarsi nella cartella `/scripts` ed eseguire lo script `upload_to_hdfs.sh` che si occupa del caricamento dei dataset dal disco locale al file system distribuito di hadoop
+    - cartella generale su hdfs `/user/hadoop/flight_data`
+    - cartella contenente il dataset completo `/user/hadoop/flight_data/complete`
+    - cartella contenente i dataset sample `/user/hadoop/flight_data/scalability`
 
 ### Esecuzione su cluster
 

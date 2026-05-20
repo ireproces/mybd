@@ -15,7 +15,7 @@ script:
 1. run_local.sh è uno script bash utilizzato per buildare l'immagine di docker ed avviare un container che la utilizzi, questo è stato fatto
     per garantire il requisito di riproducibilità --> qualsiasi altro utente non deve far altro che eseguire lo script ed attenderne il
     completamento
-2. data_cleaning.py è uno script python per la creazione di un dataset più performante da far elaborare ai job 1,2,3   
+2. data_cleaner.py è uno script python per la creazione di un dataset più performante da far elaborare ai job 1,2,3   
     --> Operazioni implementate:
         1. Eliminazione di record duplicati --> (effettuata prima del column pruning per assicurare la rimozione dei duplicati effettivi) garantisce
             che errori a monte non sporchino le aggregazione e le medie finali
@@ -48,6 +48,12 @@ script:
             risparmiando storage e accelerando il trasferimento di rete nel cluster
         d. conservazione dello schema: parquet salva i metadati e lo schema (tipi di dato) all'interno del file stesso quindi le operazioni eseguite
             dai job futuri possono operare istantaneamente e con certezza matematica, senza dover fare inferenze costose e senza rischiare errori di casting.
+3. data_generator.py è uno script python per la creazione di dataset per testare la scalabilità, in particolare vengono generati tramite
+    tecniche di sampling (10-25-50-75 %) ed oversampling (150-200-300 %) a partire dal dataset pulito (flight_100.parquet)
+4. upload_to_hdfs.sh è uno script bash che si occupa della fase di Data Ingestion, ovvero il caricamento dei dati dal disco locale al
+    file system distribuito hdfs --> questa scelta di progetto è stata presa per ottimizzare il lavoro dei job, liberi di sfruttare a
+    pieno le potenzialità e le proprietà di hdfs
+5. run_job1_mapreduce.sh è uno script bash per automatizzare l'esecuzione del job 1
 
 EDA:
 1. come prima cosa vengono definite le librerie utilizzate durante l'esplorazione ed alcune impostazioni per i grafici
@@ -103,8 +109,27 @@ Job 1:
         (ii) il ritardo minimo, massimo e medio in arrivo; --> arr_delay su cui vengono applicate le funzioni min, max ed avg
         (iii) il tasso di cancellazione dei voli; --> cancelled su cui viene applicata avg
         (iv) l’elenco dei mesi in cui quella compagnia opera su quell’aeroporto o tratta. --> month per creare l'elenco di valori univoci
-* tecnologia:
-* logica:
+* tecnologia: MapReduce --> scelta di progetto dettata dal fatto che le richieste del job sono sostanzialmente un'evoluzione del
+    wordCount
+* logica: il job viene eseguito attraverso un programma Java composto dalle classi:
+    1. il Driver si occupa di configurare l'infrastruttura di Hadoop, in particolare
+        - configurazione del Job: specifica quali classi usare come Mapper e quali come Reducer
+        - gestione dei Tipi: definisce i tipi di dato per le chiavi e i valori intermedi (quelli in uscita dal Mapper) e finali
+            (quelli in uscita dal Reducer)
+        - formati Input/Output: configura un InputFormat speciale (come ExampleInputFormat) in grado di leggere e decomprimere
+            questo formato colonnare, traducendolo in record leggibili dal Mapper
+        - monitoraggio: avvia l'esecuzione e restituisce le metriche temporali che stai salvando nel file di performance
+    2. il Mapper si occupa della fase di proiezione e filtraggio (eseguito in parallelo su diversi blocchi del dataset), in particolare
+        - lettura: riceve in input una riga alla volta del dataset Parquet
+        - estrazione della chiave: estrae il codice della compagnia aerea e il codice dell'aeroporto di partenza/tratta, unisce
+            queste informazioni per creare la chiave intermedia
+        - estrazione del valore: estrae le metriche necessarie per i calcoli
+        - emissione: invia alla fase successiva la coppia <chiave,valore>
+    3. il Reducer si occupa della fase di aggregazione statistica (viene eseguito una sola volta per ogni chiave unica) in particolare
+        - input: riceve una chiave e un iteratore (una lista) contenente tutti i valori associati a quella specifica coppia
+        - elaborazione ciclica su tutti gli elementi della lista per il calcolo dei conteggi, delle medie e la memorizzazione in un set finale
+        - emissione finale: formatta i risultati aggregati in una stringa pulita e scrive il record nel file di output finale su HDFS
+    4. Fase di Shuffle & Sort (gestita nativamente da Hadoop): raggruppa automaticamente tutte le coppie che hanno la stessa chiave
 
 Job 2:
 * richiesta: generare un report contenente, per ciascun aeroporto di partenza e per ciascun mese: --> origin e month
