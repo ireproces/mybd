@@ -28,6 +28,12 @@ src/job1_mapreduce/dependency-reduced-pom.xml
 results/*
 
 # ========================
+# HIVE & DERBY (Job 2)
+# ========================
+metastore_db/
+derby.log
+
+# ========================
 # IDE & OS SETTINGS
 # ========================
 .DS_Store
