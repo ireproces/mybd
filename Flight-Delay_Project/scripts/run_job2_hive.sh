@@ -58,8 +58,8 @@ if [ "$ENV_NAME" == "Local_1" ]; then
 fi
 
 # List of datasets
-# DATASETS=("flight_10.parquet" "flight_25.parquet" "flight_50.parquet" "flight_75.parquet" "flight_100.parquet" "flight_150.parquet" "flight_200.parquet" "flight_300.parquet")
-DATASETS=("flight_sample.parquet")
+DATASETS=("flight_10.parquet" "flight_25.parquet" "flight_50.parquet" "flight_75.parquet" "flight_100.parquet" "flight_150.parquet" "flight_200.parquet" "flight_300.parquet")
+# DATASETS=("flight_sample.parquet")
 
 # Hive execution cycle
 for DATASET in "${DATASETS[@]}"; do
