@@ -22,7 +22,8 @@ public class Job1V1Driver {
         // [output_path] is the path to the output directory where the results will be saved
         // [environment_name] is the environment in which the job runs
         if (args.length != 3) {
-            System.err.println("EXECUTION ERROR: Usage: Job1Driver <input_path> <output_path> <environment_name>");
+            System.err.println("[Driver - EXECUTION ERROR][!]");
+            System.err.println("Correct usage: Job1Driver <input_path> <output_path> <environment_name>");
             System.exit(-1);
         }
 
@@ -49,7 +50,7 @@ public class Job1V1Driver {
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
         // 7. Execution and Time Measurement
-        System.out.println("  Driver: starting the job...");
+        System.out.println("[Driver] Starting the job...");
 
         // starts the timer
         long startTime = System.currentTimeMillis();
@@ -74,7 +75,7 @@ public class Job1V1Driver {
             // retrieves official hadoop byte counter for shuffle operation time
             long shuffleBytes = counters.findCounter(TaskCounter.MAP_OUTPUT_BYTES).getValue();
             
-            System.out.println("  Driver: job completed successfully!");
+            System.out.println("[Driver] job done!");
 
             // automatic performance report csv generation and saving
             String perfDir = "/app/results/job1_mapreduce/performance";
@@ -107,12 +108,12 @@ public class Job1V1Driver {
                     environment, datasetName, totalDuration, mapTime, reduceTime, shuffleBytes, mapInputRecords, reduceOutputRecords);
                 out.close();
             } catch (Exception e) {
-                System.err.println(" ERROR in saving metrics: " + e.getMessage());
+                System.err.println("[Driver - ERROR][!] in saving metrics: " + e.getMessage());
             }
 
             System.exit(0);
         } else {
-            System.out.println(" EXECUTION ERROR: Job has failed.");
+            System.out.println("[Driver - EXECUTION ERROR][!] Job has failed.");
             System.exit(1);
         }
     }

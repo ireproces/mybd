@@ -19,7 +19,8 @@ public class Job1V2Driver {
         
         // 1. Parameters checking
         if (args.length != 3) {
-            System.err.println("EXECUTION ERROR: Usage: Job1v2Driver <input_path> <output_path> <environment_name>");
+            System.err.println("[Driver - EXECUTION ERROR][!]");
+            System.err.println("Correct usage: Job1v2Driver <input_path> <output_path> <environment_name>");
             System.exit(-1);
         }
 
@@ -44,7 +45,7 @@ public class Job1V2Driver {
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
         // 7. Execution and Time Measurement
-        System.out.println("  Driver: Starting the job...");
+        System.out.println("[Driver] Starting the job...");
 
         long startTime = System.currentTimeMillis();
 
@@ -62,7 +63,7 @@ public class Job1V2Driver {
             long mapInputRecords = counters.findCounter(TaskCounter.MAP_INPUT_RECORDS).getValue();
             long reduceOutputRecords = counters.findCounter(TaskCounter.REDUCE_OUTPUT_RECORDS).getValue();
             
-            System.out.println("  Driver: job completed successfully!");
+            System.out.println("[Driver] job done!");
 
             String perfDir = "/app/results/job1_mapreduce/performance";
             String perfFile = perfDir + "/job1v2_performance.csv";
@@ -87,12 +88,12 @@ public class Job1V2Driver {
                     environment, datasetName, totalDuration, mapTime, reduceTime, shuffleBytes, mapInputRecords, reduceOutputRecords);
                 out.close();
             } catch (Exception e) {
-                System.err.println(" ERROR in saving metrics: " + e.getMessage());
+                System.err.println("[Driver - ERROR][!] in saving metrics: " + e.getMessage());
             }
 
             System.exit(0);
         } else {
-            System.out.println(" EXECUTION ERROR: Job has failed.");
+            System.out.println("[Driver - EXECUTION ERROR][!] Job has failed.");
             System.exit(1);
         }
     }
