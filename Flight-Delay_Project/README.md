@@ -55,10 +55,14 @@ Note - Spark: l'intero motore Apache Spark pre-compilato è contenuto nella libr
     - verificare che i dataset siano stati correttamente creati e salvanti nel percorso `dataset/processed/flight_<perc>.parquet`
     - verificare che le statistiche sulle performance siano state create e salvate correttamente nel percorso `/results/data_prep/data_generator_performance.csv`
 
-5. posizionarsi nella cartella `/scripts` ed eseguire lo script `upload_to_hdfs.sh` che si occupa del caricamento dei dataset dal disco locale al file system distribuito di hadoop
+5. posizionarsi nella cartella `/scripts` (dal container) ed eseguire lo script `upload_to_hdfs.sh` che si occupa del caricamento dei dataset dal disco locale al file system distribuito di hadoop
     - cartella generale su hdfs `/user/hadoop/flight_data`
     - cartella contenente il dataset completo `/user/hadoop/flight_data/complete`
     - cartella contenente i dataset sample `/user/hadoop/flight_data/scalability`
+
+6. sempre dalla cartella `/scripts` eseguire lo script `run_job1_mapreduce.sh` che occupa dell'esecuzione automatizzata del job 1 $\to$ la sintassi del comando completo è `./run_job1_mapreduce [version] [enviornment]` dove:
+    - `[version]` specifica la versione del job ed accetta i valori `v1 | v2 | all` (`all` è il valore di default nel caso non venga specificato nessun parametro)
+    - `[enviornment]` specifica l'ambiente dove viene eseguito il job ed accetta qualsiasi stringa (`Local_1` è il valore di default nel caso non venga specificato nessun parametro, indica un esecuzione standalone)
 
 ### Esecuzione su cluster
 

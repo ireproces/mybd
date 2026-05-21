@@ -168,7 +168,14 @@ Flusso di lavoro:
     Per questioni di performance è stata scelta la libreria pyspark per il processamento del dataset, scelta architetturale mirata: permette
     il processamento distribuito (sfruttando tutti i core della CPU) e l'esecuzione lazy (ottimizzando il consumo di memoria). le classiche
     librerie pandas, matplotlib e seaborn vengono utilizzate per la creazione e la visualizzazione dei grafici.
-* con le informazioni ottenute tramite l'EDA si è proceduto a scrivere lo script data_cleaning.py che si occupa della pulizia del dataset
-* dopo aver completato la pulizia, è stato pensato uno script (generate_test_datasets.py) in grado di partizionare il dataset processato
+* con le informazioni ottenute tramite l'EDA si è proceduto a scrivere lo script data_cleaner.py che si occupa della pulizia del dataset
+* dopo aver completato la pulizia, è stato pensato uno script (data_generator.py) in grado di partizionare il dataset processato
     in porzioni di dimensioni minori (10%, 25%, 50%, 75%) e maggiori (150%, 200%, 300%) che potessero essere utilizzati per effettuare test
     futuri di scalabilità su singolo nodo e su cluster
+* al termine della fase di data preparation si è passati alla fase di data ingestion (tramite script upload_to_hdfs.sh) il cui
+    principale obiettivo è quello di caricare i dataset processati e pronti per essere utilizzati sul file system distribuito di
+    hadoop cosiché possano essere maneggiati più facilmente dalle tecnologie utilizzate nei job
+* la realizzazione effettiva del job 1 è stata effettuata tramite tecnologica MapReduce (implementata con un programma java). la
+    realizzazione del job è stata effettuata in 2 versioni (v1 - raggruppa per codice della compagnia ed aeroporto di origine;
+    v2 - raggruppa per codice della compagnia e tratta (aeroporto di origine + aeroporto di destinazione)).
+    Prima di eseguire lo script di automatizzazione (run_job1_mapreduce) è stato compilato il file jar eseguibile (mvn clean package)
