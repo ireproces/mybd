@@ -161,9 +161,11 @@ Job 2:
     (b) per ciascuna fascia, il ritardo medio in partenza e il ritardo medio in arrivo --> dep_delay + arr_delay
     (c) le tre cause di cancellazione --> cancelled + cancellation_code 
          o ritardo più frequenti, se disponibili nel dataset. --> carrier_delay + weather_delay + nas_delay + security_delay + late_aircraft_delay
-* tecnologia: Hive (HQL) --> scelta di progetto dettata dal fatto che
+* tecnologia: Hive (HQL) --> scelta di progetto dettata dal fatto che le metriche da calcolare richiedono operazioni che rappresentano l'essenza
+    dell'analisi relazionale e dell'aggregazione dati
 * logica: il flusso logico di esecuzione della super query hql segue una pipeline strutturata a passaggi successivi per risolvere un problema di
-    aggregazione complessa e ranking multi-livello.
+    aggregazione complessa e ranking multi-livello. mischia metriche orizzontali (valori calcolabili sulla singola scatola di raggruppamento)
+    con metriche verticali (classifiche che richiedono di ordinare i dati)
     - viene utilizzata una External Table --> Hive non si impossessa fisicamente dei dati, si limita a creare un puntatore metadati
         verso una cartella HDFS preesistente (la direttiva STORED AS PARQUET indica ad Hive di sfruttare l'ottimizzazione colonnare del formato
         Parquet) - la clausola LOCATION '${hiveconf:INPUT_PATH}' riceve dinamicamente il percorso dal comando Bash
