@@ -52,8 +52,29 @@ script:
     tecniche di sampling (10-25-50-75 %) ed oversampling (150-200-300 %) a partire dal dataset pulito (flight_100.parquet)
 4. upload_to_hdfs.sh è uno script bash che si occupa della fase di Data Ingestion, ovvero il caricamento dei dati dal disco locale al
     file system distribuito hdfs --> questa scelta di progetto è stata presa per ottimizzare il lavoro dei job, liberi di sfruttare a
-    pieno le potenzialità e le proprietà di hdfs
-5. run_job1_mapreduce.sh è uno script bash per automatizzare l'esecuzione del job 1
+    pieno le potenzialità e le proprietà di hdfs. Funzionalità implementate:
+    a. Dinamicità dei Percorsi: lo script accetta la directory locale dei dati e la directory HDFS come parametri. Se non li passi, userà dei valori
+        di default predefiniti per comodità
+    b. Organizzazione Strutturata: crea tre sotto-cartelle specifiche (/user/hadoop/flight_data/cleaned per il dataset base al 100%; /user/hadoop
+        /flight_data/scalability per tutti i campioni; /user/hadoop/flight_data/test per il dataset sample)
+    c. Sistema Anti-Collisione: prima di caricare i file, lo script verifica se la cartella di destinazione esiste già, se esiste, la elimina
+        ricorsivamente. Questo evita errori bloccanti
+    d. Logging e Tempistiche: lo script stampa un log colorato per ogni caricamento e misura il tempo (in s) impiegato per spostare ogni singolo dataset su HDFS
+    e. Verifica finale: stampa l'albero di HDFS
+5. run_job1_mapreduce.sh è uno script bash per automatizzare l'esecuzione del job 1. Funzionalità implementate:
+    a. Scelta Dinamica della Versione: l'input è case-sensitive (l'utente può specificare la versione del job)
+    b. Agnosticismo rispetto all'Ambiente: lo script è completamente ignaro di dove stia girando. Sia in Docker locale sia in un cluster AWS, le direttive
+        Hadoop funzionano allo stesso identico modo, questo è ottenuto utilizzando l'indirizzamento standard di HDFS. Inoltre, è stata automatizzata la
+        scelta della sotto-cartella di input basata su quanto impostato nello script di upload.
+    c. Sincronizzazione sul Disco Locale: una volta che l'elaborazione MapReduce termina su HDFS, lo script sincronizza (copia) i risultati di hadoop sul
+        disco nella cartella locale results/job1_mapreduce/...
+6. run_job2_hive.sh è uno script bash per automatizzare l'esecuzione del job 2. Funzionalità implementate:
+    a. Agnostico sui Percorsi: lo script non fa alcun riferimento al tuo file system locale per i dati in ingresso, usa l'indirizzamento di base di Hadoop
+    b. Isolamento del Metastore: Derby viene inizializzato SOLO se la variabile di ambiente è Local_1, quando verrà eseguito sul cluster, salterà la fase
+        di inizializzazione locale del db, delegandola al cloud
+    c. Ottimizzazione e Unificazione dell'Output: Hive genera file di dump chiamati 000000_0, 000001_0, ecc. Lo script scarica l'intera cartella HDFS risultante
+        ed usa il comando cat per concatenare tutti i frammenti (assieme alle loro intestazioni SQL) in un singolo file .csv pulito e rinominato col nome del
+        dataset, eliminando automaticamente i file spazzatura
 
 EDA:
 1. come prima cosa vengono definite le librerie utilizzate durante l'esplorazione ed alcune impostazioni per i grafici
@@ -140,8 +161,31 @@ Job 2:
     (b) per ciascuna fascia, il ritardo medio in partenza e il ritardo medio in arrivo --> dep_delay + arr_delay
     (c) le tre cause di cancellazione --> cancelled + cancellation_code 
          o ritardo più frequenti, se disponibili nel dataset. --> carrier_delay + weather_delay + nas_delay + security_delay + late_aircraft_delay
-* tecnologia:
-* logica:
+* tecnologia: Hive (HQL) --> scelta di progetto dettata dal fatto che
+* logica: il flusso logico di esecuzione della super query hql segue una pipeline strutturata a passaggi successivi per risolvere un problema di
+    aggregazione complessa e ranking multi-livello.
+    - viene utilizzata una External Table --> Hive non si impossessa fisicamente dei dati, si limita a creare un puntatore metadati
+        verso una cartella HDFS preesistente (la direttiva STORED AS PARQUET indica ad Hive di sfruttare l'ottimizzazione colonnare del formato
+        Parquet) - la clausola LOCATION '${hiveconf:INPUT_PATH}' riceve dinamicamente il percorso dal comando Bash
+    - vengono utilizzate delle CTE (Common Table Expressions) per svolgere i task principali richiesti al job:
+    1. CTE FlightBase (Mappatura e Classificazione) - agisce a livello di singola riga (singolo volo)
+        - la prima istruzione CASE mappa i minuti di ritardo in partenza assegnandoli alle categorie richieste (LOW, MEDIUM, HIGH)
+        - la seconda istruzione CASE risolve un problema di granularità delle cause: il dataset originale presenta i minuti distribuiti
+            su 5 colonne di ritardo diverse. per identificare la causa "più frequente", viene usata la funzione GREATEST che confronta
+            i valori delle colonne sulla stessa riga; in caso di volo cancellato, viene data priorità assoluta al motivo di cancellazione
+            (cancellation_code)
+    2. CTE AggStats (Metriche di Base) - risolve i punti (a) e (b) --> effettua un raggruppamento globale basato su origin, month e delay_band;
+        su queste macro-categorie calcola il volume totale dei voli tramite COUNT(*) e i ritardi medi in partenza e in arrivo tramite funzione
+        di aggregazione AVG
+    3. CTE CauseCounts e RankedCauses (Conteggio e Classifica) - risolve il punto (c)
+        - CauseCounts isola i voli e conta quante volte una determinata causa si è verificata all'interno dello stesso aeroporto, mese e fascia
+        - RankedCauses applica la Window Function ROW_NUMBER() OVER(PARTITION BY ... ORDER BY cause_freq DESC). Questa funzione crea un contatore
+            isolato per ogni gruppo (partizione) che ricomincia da 1 e incrementa in base alla frequenza decrescente della causa
+    - nel blocco finale viene effettuato un LEFT JOIN tra le statistiche generali (AggStats) e la classifica delle cause (RankedCauses). Poiché
+        per ogni combinazione di aeroporto e mese ci sono più cause classificate (quindi più righe generate dal join), il codice applica la
+        tecnica di Pivot Condizionale: attraverso il GROUP BY e l'uso di MAX(CASE WHEN c.rnk = X THEN ... ELSE NULL END), Hive schiaccia
+        le righe multiple del join riportandole ad una sola riga unica per aeroporto/mese, distribuendo le prime 3 cause su tre colonne distinte
+        (top_cause_1, top_cause_2, top_cause_3).
 
 Job 3:
 * richiesta: generare, per ciascun aeroporto di partenza e per ciascuna compagnia aerea,
@@ -175,7 +219,8 @@ Flusso di lavoro:
 * al termine della fase di data preparation si è passati alla fase di data ingestion (tramite script upload_to_hdfs.sh) il cui
     principale obiettivo è quello di caricare i dataset processati e pronti per essere utilizzati sul file system distribuito di
     hadoop cosiché possano essere maneggiati più facilmente dalle tecnologie utilizzate nei job
-* la realizzazione effettiva del job 1 è stata effettuata tramite tecnologica MapReduce (implementata con un programma java). la
+* la realizzazione effettiva del job 1 è stata effettuata tramite tecnologia MapReduce (implementata con un programma java). la
     realizzazione del job è stata effettuata in 2 versioni (v1 - raggruppa per codice della compagnia ed aeroporto di origine;
     v2 - raggruppa per codice della compagnia e tratta (aeroporto di origine + aeroporto di destinazione)).
     Prima di eseguire lo script di automatizzazione (run_job1_mapreduce) è stato compilato il file jar eseguibile (mvn clean package)
+* la realizzazione effettiva del job 2 è stata effettuata tramite tecnologia Hive (utilizzo di hql per generare una super query)
