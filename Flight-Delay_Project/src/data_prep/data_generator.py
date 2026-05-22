@@ -124,7 +124,7 @@ def main():
     # 0. Command-line arguments checking
     # if the number of arguments is not 4, stop the execution
     if len(sys.argv) != 4:
-        print("EXECUTION ERROR: Usage: data_generator.py <input_path> <output_dir> <environment>")
+        print("[EXECUTION ERROR] Usage: data_generator.py <input_path> <output_dir> <environment>")
         sys.exit(1)
 
     # dynamic input and output paths and environment name

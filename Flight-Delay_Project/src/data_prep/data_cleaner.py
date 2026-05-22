@@ -24,7 +24,7 @@ def init_spark(appName="FlightData_Preparation"):
     print(" SparkSession Ready!")
     return spark
 
-# function to load the data from the specified input path given as an input parameter,
+# function to load the data from the specified input path given as an input parameter
 def load_data(spark, input_path):
 
     print(f" Loading data from: {input_path}")
@@ -180,7 +180,7 @@ def main():
     # 0. Command-line arguments checking
     # if the number of arguments is not 4, stop the execution
     if len(sys.argv) != 4:
-        print("EXECUTION ERROR: Usage: data_cleaner.py <input_path> <output_path> <environment>")
+        print("[EXECUTION ERROR] Usage: data_cleaner.py <input_path> <output_path> <environment>")
         sys.exit(1)
 
     # dynamic input and output paths and environment name
