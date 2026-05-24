@@ -201,8 +201,23 @@ Per ciascuna coppia (aeroporto di partenza, compagnia), il report deve contenere
         quell’aeroporto; --> avg(dep_delay).groupby(origin, op_unique_carrier) - avg(dep_delay).groupby(origin)
     (e) la posizione in classifica della compagnia in quell’aeroporto in base al ritardo medio in partenza, dalla migliore
         alla peggiore. --> funzione di ranking
-* tecnologia:
-* logica:
+* tecnologia: Spark --> scelta di progetto dettata dal fatto che Spark si basa su un archiettura In-Memory (mantiene i dati
+    in RAM anziché scriverli sul disco), questo favorisce operazioni di aggregazione in sequenza richieste per svolgere i task
+* logica: l'analisi comparativa avanzata viene eseguita a step:
+    1. Inizializzazione e Lettura dei Dati --> viene avviata una SparkSession che inizializza l'applicazione PySpark, successivamente
+        vengono letti i file parquet e trasformati in DataFrame (distribuiti) - vengono selezionate solo le colonne rilevanti
+    2. Calcolo delle Statistiche per Singola Compagnia --> è stata utilizzata una funzione di raggruppamento (groupBy), per poi
+        calcolare le metriche di aggregazione tramite le funzioni apposite (count, avg). per il tasso di cancellazione si sfrutta
+        il flag della feature (0,1) la cui media restituisce direttamente la percentuale esatta. il tutto porta alla generazione
+        di un DataFrame intermedio (df_carrier_stats)
+    3. Calcolo del Comportamento Medio dell'Aeroporto --> sfrutta la Window Function per calcolare la metrica complessiva e aggiunge
+        il risultato ottenuto in una nuova colonna (airport_avg_dep_delay) del DataFrame intermedio
+    4. Confronto e Classifica --> avendo sulla stessa riga sia il valore della compagnia sia il valore globale dell'aeroporto, per
+        trovare la differenza si usa una differenza vettoriale tra le due colonne, per trovare la posizione in classifica si sfrutta
+        nuovamente la Window Function ma stavolta applicando la funzione di rank
+    5. Esportazione in Formato Efficiente e Salvataggio Metriche --> l'output finale viene salvato nuovamente su hdfs in formato
+        parquet e copiato in locale sempre nello stesso formato. questo permette a Spark di sfruttare le performance distribuite senza
+        dover spostare tutti i dati su un singolo nodo (in caso di conversione a CSV)
 
 Flusso di lavoro:
 * è stata configurata l'immagine docker che verrà utilizzata all'interno del (e successivamente dei) container per garantire il requisito
@@ -226,3 +241,4 @@ Flusso di lavoro:
     v2 - raggruppa per codice della compagnia e tratta (aeroporto di origine + aeroporto di destinazione)).
     Prima di eseguire lo script di automatizzazione (run_job1_mapreduce) è stato compilato il file jar eseguibile (mvn clean package)
 * la realizzazione effettiva del job 2 è stata effettuata tramite tecnologia Hive (utilizzo di hql per generare una super query)
+* la realizzazione effettiva del job3 è stata effettuata tramite tecnologica Spark

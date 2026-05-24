@@ -60,11 +60,13 @@ Note - Spark: l'intero motore Apache Spark pre-compilato è contenuto nella libr
     - cartella contenente il dataset completo `/user/hadoop/flight_data/complete`
     - cartella contenente i dataset sample `/user/hadoop/flight_data/scalability`
 
-6. sempre dalla cartella `/scripts` eseguire lo script `run_job1_mapreduce.sh` che si occupa dell'esecuzione automatizzata del job 1 $\to$ la sintassi del comando completo è `./run_job1_mapreduce [version] [enviornment]` dove:
+6. sempre dalla cartella `/scripts` eseguire lo script `run_job1.sh` che si occupa dell'esecuzione automatizzata del job 1 $\to$ la sintassi del comando completo è `./run_job1 [version] [enviornment]` dove:
     - `[version]` specifica la versione del job ed accetta i valori `v1 | v2 | all` (`all` è il valore di default nel caso non venga specificato nessun parametro)
     - `[enviornment]` specifica l'ambiente dove viene eseguito il job ed accetta qualsiasi stringa (`Local_1` è il valore di default nel caso non venga specificato nessun parametro, indica un esecuzione standalone)
 
-7. sempre dalla cartella `/scripts` eseguire lo script `run_job2_hive.sh` che si occupa dell'esecuzione automatizzata del job 2
+7. sempre dalla cartella `/scripts` eseguire lo script `run_job2.sh` che si occupa dell'esecuzione automatizzata del job 2. i risultati potranno essere visualizzati nella cartella /results/job2_hive in formato csv
+
+8. sempre dalla cartella `/scripts` eseguire lo script `run_job3.sh` che si occupa dell'esecuzione automatizzata del job 3. i risultati potranno essere visualizzati, tramite interrogazioni in pyspark, nella cartella /results/job3_spark in formato parquet
 
 ### Esecuzione su cluster
 
