@@ -26,7 +26,7 @@ ENV_NAME=${2:-"Local_1"}
 # validation of the version parameter
 if [[ "$VERSION" != "v1" && "$VERSION" != "v2" && "$VERSION" != "all" ]]; then
     echo -e "${RED}[ERROR] Incorrect syntax! Correct usage:${NC}"
-    echo -e "  $0 <v1 | v2 | all> [nome_ambiente]"
+    echo -e "  $0 <v1 | v2 | all> [environment_name]"
     exit 1
 fi
 

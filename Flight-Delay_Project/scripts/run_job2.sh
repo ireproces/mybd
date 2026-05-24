@@ -8,7 +8,6 @@ set -e
 # colors for readable output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
-YELLOW='\033[0;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
@@ -36,9 +35,9 @@ if [ ! -f "$HQL_FILE" ]; then
     exit 1
 fi
 
-echo "======================================================="
-echo "[Hive] Starting the job"
-echo "======================================================="
+echo -e "======================================================="
+echo -e "[Hive] Starting the job"
+echo -e "======================================================="
 
 # creating a local performance folder
 mkdir -p "$LOCAL_OUTPUT_BASE"
@@ -51,7 +50,7 @@ fi
 # Metastore management (for local Docker environment only)
 if [ "$ENV_NAME" == "Local_1" ]; then
     if [ ! -d "metastore_db" ]; then
-        echo -e "\\n${BLUE}[*] Inizializzazione del Metastore Derby locale...${NC}"
+        echo -e "\\n${BLUE}[*] Initializing local Derby Metastore...${NC}"
         schematool -dbType derby -initSchema > /dev/null 2>&1 || true
         echo -e "${GREEN}[✓] Metastore ready!${NC}"
     fi
@@ -103,8 +102,9 @@ for DATASET in "${DATASETS[@]}"; do
     printf "%s,%s,%.3f\\n" "$ENV_NAME" "$DATASET" "$DURATION" >> "$PERF_FILE"
 
     echo ""
-    echo -e "${BLUE}[*] Sincronizzazione dei risultati sul disco locale...${NC}"
+    echo -e "${BLUE}[*] Synchronizing results to local disk...${NC}"
     
+    # removes the local folder if it already exists
     rm -rf "$LOCAL_OUTPUT_DIR"
     rm -f "${LOCAL_OUTPUT_BASE}/${BASENAME}.csv"
     
@@ -114,12 +114,12 @@ for DATASET in "${DATASETS[@]}"; do
     if [ -d "$LOCAL_OUTPUT_DIR" ]; then
         # create the file and insert the header
         echo "origin,month,delay_band,total_flights,avg_dep_delay,avg_arr_delay,top_cause_1,top_cause_2,top_cause_3" > "${LOCAL_OUTPUT_BASE}/${BASENAME}.csv"
+        
         # appends all pure data calculated by Hive
         cat "$LOCAL_OUTPUT_DIR"/* >> "${LOCAL_OUTPUT_BASE}/${BASENAME}.csv"
         rm -rf "$LOCAL_OUTPUT_DIR"
-        echo -e "${GREEN}[✓] Aggregate result available in: ${LOCAL_OUTPUT_BASE}/${BASENAME}.csv${NC}"
+        echo -e "${GREEN}[✓] Local results ready in: ${LOCAL_OUTPUT_BASE}/${BASENAME}.csv${NC}"
     fi
-
 done
 
 echo ""
