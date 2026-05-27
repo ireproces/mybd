@@ -219,7 +219,7 @@ Per ciascuna coppia (aeroporto di partenza, compagnia), il report deve contenere
         parquet e copiato in locale sempre nello stesso formato. questo permette a Spark di sfruttare le performance distribuite senza
         dover spostare tutti i dati su un singolo nodo (in caso di conversione a CSV)
 
-Flusso di lavoro:
+Flusso di lavoro in locale:
 * è stata configurata l'immagine docker che verrà utilizzata all'interno del (e successivamente dei) container per garantire il requisito
     di riproducibilità. nelle fasi iniziali tutte le operazioni sono state eseguite sul sample del dataset
 * dopo aver configurato correttamente l'ambiente contanerizzato ed aver verificato che tutto funzionasse, è stato effettuato il
@@ -242,3 +242,11 @@ Flusso di lavoro:
     Prima di eseguire lo script di automatizzazione (run_job1_mapreduce) è stato compilato il file jar eseguibile (mvn clean package)
 * la realizzazione effettiva del job 2 è stata effettuata tramite tecnologia Hive (utilizzo di hql per generare una super query)
 * la realizzazione effettiva del job3 è stata effettuata tramite tecnologica Spark
+
+Flusso di lavoro su cluster:
+* è stato creato un bucket (flight-delay-data2026) su S3 che replica quasi fedelmente la struttura già impostata in locale
+* è stato caricato il dataset grezzo in flight-delay-data2026/data/raw
+* sono stati adattati gli script di esecuzione e che implementano la logica di data_prep, job1, job2 e job3 per poter essere
+    eseguiti nel cluster
+* sono stati creati 2 cluster, uno con 4 nodi (1 master, 1 core, 2 task) ed uno con 8 nodi (1 master, 1 core, 6 task) per testare
+    la scalabilità della dimensione del cluster (scale-out)

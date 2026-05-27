@@ -32,9 +32,12 @@ Note - Spark: l'intero motore Apache Spark pre-compilato è contenuto nella libr
 - Docker 4.73.0
 - Python 3.10.18
 - Pandas 2.2.1
+- AWS Lab
+- Amazon S3
 
 ## Installazione
 0. scaricare il repository in locale
+
 1. effettuare il download del dataset al seguente [https://www.kaggle.com/datasets/hrishitpatil/flight-data-2024?resource=download]link e posizionare il dataset completo (`flight_data_2024.csv`) nella cartella del repo `dataset/raw/`
 
 ### Esecuzione standalone
@@ -69,6 +72,21 @@ Note - Spark: l'intero motore Apache Spark pre-compilato è contenuto nella libr
 8. sempre dalla cartella `/scripts` eseguire lo script `run_job3.sh` che si occupa dell'esecuzione automatizzata del job 3. i risultati potranno essere visualizzati, tramite interrogazioni in pyspark, nella cartella /results/job3_spark in formato parquet
 
 ### Esecuzione su cluster
+0. creare un cluster AWS EMR e connettersi al nodo Master del cluster tramite ssh `ssh -i ~/.ssh/bigdata2026key.pem hadoop@ec2-XXX-XXX-XXX-XXX.compute-1.amazonaws.com`
+
+1. scarica gli script da S3 `aws s3 cp s3://flight-delay-data2026/scripts/ /home/hadoop/scripts/ --recursive`
+2. dai i permessi di esecuzione a tutti gli script bash `chmod +x /home/hadoop/scripts/*/*.sh`
+
+3. lancia la data preparation `cd /home/hadoop/scripts/data_prep/` seguito da `./run_data_prep.sh AWS_4Nodes`
+* i dataset processati verrano salvati su S3 in `flight-delay-data2026/data/processed`
+* le performance degli script verrano salvati su S3 in `flight-delay-data2026/results/performance/data_prep`
+
+4. lancia il job 1 `cd /home/hadoop/scripts/job1_mapreduce/` seguito da `./run_job1.sh all AWS_4Nodes`
+
+5. lancia il job 2 `cd /home/hadoop/scripts/job2_hive/` seguito da `./run_job2.sh AWS_4Nodes`
+
+6. lancia il job 3 `cd /home/hadoop/scripts/job3_spark/` seguito da `./run_job3.sh AWS_4Nodes`
+
 
 ## Dataset
 il pacchetto scaricato da Kaggle contiene:
@@ -85,7 +103,4 @@ Inoltre, anziché elaborare un dataset specifico per ogni job, si è scelto di e
 ### Generazione dei dataset di testing
 Per testare la scalabilità (sia scale-up che scale-out) si è pensato di costruire dataset (già puliti e processati) di dimensioni differenti.
 
-## Job
-
-### Job 1
-Il Job 1 richiede di calcolare le statistiche per ogni singola compagnia aerea (`carrier` feature).
+## Jobs
