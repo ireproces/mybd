@@ -4,6 +4,7 @@
 dataset/raw/*
 dataset/processed/*
 *.parquet
+results/*
 
 # Exeptions
 !dataset/raw/flight_data_2024_sample.csv
@@ -25,7 +26,6 @@ src/job1_mapreduce/dependency-reduced-pom.xml
 *.jar
 !src/job1_mapreduce/target/job1-1.0-SNAPSHOT.jar
 *.class
-results/*
 
 # ========================
 # HIVE & DERBY (Job 2)
@@ -36,4 +36,10 @@ derby.log
 # ========================
 # IDE & OS SETTINGS
 # ========================
-.DS_Store
+*.DS_Store
+
+# ========================
+# AWS Lab
+# ========================
+cluster/performance/*
+!cluster/job1_mapreduce/job1-1.0-SNAPSHOT.jar
