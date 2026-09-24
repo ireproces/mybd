@@ -1,0 +1,12 @@
+# Il dataset (313 MB) arriva dal volume, non dall'immagine.
+data/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.log
+.env
+Slide.pptx
+first_project.pdf
+docs/
+README.md

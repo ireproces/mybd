@@ -1,0 +1,477 @@
+{
+  "_readme": "Benchmark di Super-Scout. Ogni caso ha una o piu' formulazioni della stessa domanda, una verita' calcolata con Cypher scritto a mano (colonne `name` e, se c'e', `value`), i concetti che il Cypher generato deve contenere, e la modalita' attesa della risposta. Le convenzioni sono quelle del sistema: senza stagione nella domanda si intende il 2015/2016; 'in Premier League' e' il club di quella stagione. Eseguire con `python evaluation/run_benchmark.py`.",
+  "cases": [
+    {
+      "id": "overall_85",
+      "group": "base",
+      "forms": [
+        "Quali sono i giocatori con overall superiore a 85?",
+        "giocatori con overall > 85",
+        "Mi elenchi i calciatori che hanno una valutazione complessiva maggiore di 85?"
+      ],
+      "truth": "MATCH (p:Player)-[r:PLAYS_FOR]->(:Team) WHERE p.active AND r.overall > 85 WITH p, max(r.overall) AS value RETURN p.name AS name, value",
+      "concepts": [
+        "overall",
+        "active"
+      ]
+    },
+    {
+      "id": "esterni_mancini",
+      "group": "base",
+      "forms": [
+        "esterni mancini con overall almeno 85",
+        "Quali sono i giocatori di ruolo esterno con piede preferito mancino con overall di almeno 85?",
+        "overall almeno 85, piede sinistro, ruolo esterno: chi sono?"
+      ],
+      "truth": "MATCH (p:Player)-[r:PLAYS_FOR]->(:Team) WHERE p.active AND p.position IN ['winger', 'wide_midfielder'] AND p.preferred_foot = 'left' AND r.overall >= 85 WITH p, max(r.overall) AS value RETURN p.name AS name, value",
+      "concepts": [
+        "preferred_foot\\s*=\\s*'left'",
+        "winger",
+        ">=\\s*85"
+      ]
+    },
+    {
+      "id": "capocannoniere_2010",
+      "group": "storico",
+      "forms": [
+        "capocannoniere serie A 2010/2011?",
+        "Vorrei sapere chi è stato il giocatore che ha segnato più gol nel campionato italiano di Serie A durante la stagione 2010/2011, e per quale squadra giocava.",
+        "nella stagione 2010/2011, chi ha segnato più gol in Serie A?"
+      ],
+      "truth": "MATCH (p:Player)-[s:SCORED]->(m:Match) WHERE m.season = '2010/2011' AND m.league = 'Italy Serie A' WITH p, count(DISTINCT s) AS value ORDER BY value DESC LIMIT 1 RETURN p.name AS name, value",
+      "concepts": [
+        "SCORED",
+        "2010/2011",
+        "Italy Serie A",
+        "SEASON_TEAM"
+      ]
+    },
+    {
+      "id": "gol_per_campionato",
+      "group": "aggregati",
+      "forms": [
+        "gol totali per campionato 2015/2016",
+        "nella stagione 2015/2016 quanti gol sono stati segnati in ciascun campionato?"
+      ],
+      "truth": "MATCH (m:Match) WHERE m.season = '2015/2016' RETURN m.league AS name, sum(m.home_goals + m.away_goals) AS value",
+      "concepts": [
+        "sum\\(",
+        "home_goals",
+        "away_goals",
+        "2015/2016"
+      ]
+    },
+    {
+      "id": "alternativa_lloris",
+      "group": "scouting",
+      "forms": [
+        "alternativa economica a Hugo Lloris",
+        "Sto cercando un portiere che possa essere un'alternativa più economica a Hugo Lloris: chi mi consigli?"
+      ],
+      "truth": "MATCH (ref:Player) WHERE toLower(ref.name) CONTAINS 'hugo lloris' WITH ref ORDER BY ref.appearances DESC LIMIT 1 MATCH (ref)-[rr:PLAYS_FOR]->(:Team) WITH ref.position AS ruolo, max(rr.overall) AS riferimento MATCH (p:Player)-[r:PLAYS_FOR]->(:Team) WHERE p.active AND p.position = ruolo WITH p, riferimento, max(r.overall) AS value WHERE value < riferimento AND value >= riferimento - 10 RETURN p.name AS name, value",
+      "concepts": [
+        "lloris",
+        "position",
+        "riferimento|<"
+      ]
+    },
+    {
+      "id": "prospetti",
+      "group": "scouting",
+      "forms": [
+        "prospetti under 23 con overall almeno 75 e almeno 10 punti di margine di crescita",
+        "Vorrei una lista di giovani giocatori su cui investire: età massima 23 anni, overall di almeno 75 e un potenziale superiore all'overall di almeno 10 punti.",
+        "potenziale meno overall almeno 10, overall almeno 75, età fino a 23 anni: quali giovani prospetti?"
+      ],
+      "truth": "MATCH (p:Player)-[r:PLAYS_FOR]->(:Team) WHERE p.active AND p.age <= 23 AND r.overall >= 75 AND r.potential - r.overall >= 10 WITH p, max(r.potential) - max(r.overall) AS value RETURN p.name AS name, value",
+      "concepts": [
+        "age",
+        "potential",
+        "overall",
+        "active"
+      ]
+    },
+    {
+      "id": "presenze_premier",
+      "group": "presenze",
+      "forms": [
+        "più di 150 presenze in Premier League e overall medio sopra 75",
+        "Quali giocatori hanno collezionato più di 150 presenze nella massima serie inglese e hanno al tempo stesso un overall medio superiore a 75?"
+      ],
+      "truth": "MATCH (p:Player)-[:APPEARED_IN]->(m:Match) WHERE m.league = 'England Premier League' AND p.active WITH p, count(DISTINCT m) AS value WHERE value > 150 MATCH (p)-[r:PLAYS_FOR]->(:Team) WITH p, value, avg(r.overall) AS overall_medio WHERE overall_medio > 75 RETURN p.name AS name, value",
+      "concepts": [
+        "APPEARED_IN",
+        "England Premier League",
+        "avg\\(",
+        "150"
+      ]
+    },
+    {
+      "id": "rigoristi_corrente",
+      "group": "convenzione_stagione",
+      "forms": [
+        "top 10 rigoristi",
+        "i dieci giocatori con più gol su rigore"
+      ],
+      "truth": "MATCH (p:Player)-[s:SCORED]->(m:Match) WHERE m.season = '2015/2016' AND s.penalty = true WITH p, count(DISTINCT s) AS value ORDER BY value DESC, p.name ASC LIMIT 10 RETURN p.name AS name, value",
+      "concepts": [
+        "penalty",
+        "2015/2016",
+        "LIMIT 10"
+      ]
+    },
+    {
+      "id": "marcatori_premier_2012",
+      "group": "storico",
+      "forms": [
+        "top 3 marcatori Premier 2012/2013 con squadra e ruolo",
+        "stagione 2012/2013, Premier League: squadra, ruolo e gol dei 3 migliori marcatori"
+      ],
+      "truth": "MATCH (p:Player)-[s:SCORED]->(m:Match) WHERE m.season = '2012/2013' AND m.league = 'England Premier League' WITH p, count(DISTINCT s) AS value ORDER BY value DESC, p.name ASC LIMIT 3 RETURN p.name AS name, value",
+      "concepts": [
+        "2012/2013",
+        "England Premier League",
+        "SEASON_TEAM",
+        "position"
+      ]
+    },
+    {
+      "id": "squadre_50_gol_casa",
+      "group": "aggregati",
+      "forms": [
+        "squadre con più di 50 gol in casa nel 2015/2016",
+        "Nella stagione 2015/2016, quali squadre hanno segnato complessivamente più di 50 gol nelle partite giocate in casa?"
+      ],
+      "truth": "MATCH (t:Team)-[:HOME_TEAM]->(m:Match) WHERE m.season = '2015/2016' WITH t, sum(m.home_goals) AS value WHERE value > 50 RETURN t.name AS name, value",
+      "concepts": [
+        "HOME_TEAM",
+        "sum\\(",
+        "home_goals",
+        ">\\s*50"
+      ]
+    },
+    {
+      "id": "autogol_corrente",
+      "group": "convenzione_stagione",
+      "forms": [
+        "top 10 autogol"
+      ],
+      "truth": "MATCH (p:Player)-[o:OWN_GOAL]->(m:Match) WHERE m.season = '2015/2016' WITH p, count(DISTINCT o) AS value ORDER BY value DESC, p.name ASC LIMIT 10 RETURN p.name AS name, value",
+      "concepts": [
+        "OWN_GOAL",
+        "2015/2016"
+      ]
+    },
+    {
+      "id": "difensori_premier_fisici",
+      "group": "sessione",
+      "forms": [
+        "Cercare difensori in premier league che abbiano altezza maggiore di 190 cm e peso maggiore di 185 lbs, associati ad precisione di testa > 82 ed elevazione > 80",
+        "Cercare difensori in premier league che abbiano la proprietà height > 190 cm e weight > 185 lbs, associati a heading_accuracy > 82 e jumping > 80"
+      ],
+      "truth": "MATCH (p:Player)-[st:SEASON_TEAM {season: '2015/2016', main: true}]->(t:Team), (p)-[r:RATED {season: '2015/2016'}]->(:Season) WHERE st.league = 'England Premier League' AND p.active AND p.role = 'defender' AND p.height > 190 AND p.weight > 185 AND r.heading_accuracy > 82 AND r.jumping > 80 RETURN p.name AS name, r.overall AS value",
+      "concepts": [
+        "SEASON_TEAM",
+        "league",
+        "role\\s*=\\s*'defender'",
+        "heading_accuracy",
+        "jumping",
+        "RATED \\{season: '2015/2016'\\}"
+      ]
+    },
+    {
+      "id": "mancini_premier_veloci",
+      "group": "sessione",
+      "forms": [
+        "Filtrare i giocatori di premier league con preferred_foot = 'left', età < 26, sprint_speed > 80 e crossing > 78",
+        "Filtrare i giocatori di premier league con piede mancino, età < 26, sprint_speed > 80 e crossing > 78",
+        "Filtrare i giocatori di premier league con piede sinistro, età < 26, sprint_speed > 80 e crossing > 78"
+      ],
+      "truth": "MATCH (p:Player)-[st:SEASON_TEAM {season: '2015/2016', main: true}]->(t:Team), (p)-[r:RATED {season: '2015/2016'}]->(:Season) WHERE st.league = 'England Premier League' AND p.preferred_foot = 'left' AND p.age < 26 AND r.sprint_speed > 80 AND r.crossing > 78 RETURN p.name AS name, r.overall AS value",
+      "concepts": [
+        "preferred_foot\\s*=\\s*'left'",
+        "age\\s*<\\s*26",
+        "sprint_speed",
+        "crossing",
+        "league"
+      ]
+    },
+    {
+      "id": "stabilita_overall",
+      "group": "sessione",
+      "forms": [
+        "Trovare i giocatori della premier league la cui varianza dell'overall_rating tra il 2012 e il 2016 è inferiore a 3 punti (es. sempre tra 75 e 78), con almeno 25 presenze medie annue (da nodo Match).",
+        "giocatori di Premier League con escursione dell'overall inferiore a 3 punti tra il 2012 e il 2016 e almeno 25 presenze medie a stagione"
+      ],
+      "truth": "MATCH (p:Player)-[st:SEASON_TEAM {season: '2015/2016', main: true}]->(t:Team) WHERE st.league = 'England Premier League' AND p.active MATCH (p)-[r:RATED]->(:Season) WHERE r.season IN ['2012/2013', '2013/2014', '2014/2015', '2015/2016'] WITH p, count(r) AS stagioni, max(r.overall) - min(r.overall) AS escursione WHERE stagioni = 4 AND escursione < 3 MATCH (p)-[:APPEARED_IN]->(m:Match) WHERE m.season IN ['2012/2013', '2013/2014', '2014/2015', '2015/2016'] WITH p, count(DISTINCT m) / 4.0 AS value WHERE value >= 25 RETURN p.name AS name, value",
+      "concepts": [
+        "2012/2013",
+        "2015/2016",
+        "min\\(",
+        "max\\(",
+        "APPEARED_IN",
+        "25"
+      ]
+    },
+    {
+      "id": "crescita_overall",
+      "group": "sessione",
+      "forms": [
+        "Trovare giocatori in premier league (età tra 24 e 27 anni nel 2016) che hanno visto crescere il loro overall_rating di almeno 5 punti tra la stagione 2014/15 e la 2015/16",
+        "giocatori di Premier League tra i 24 e i 27 anni il cui overall è aumentato di almeno 5 punti dal 2014/2015 al 2015/2016"
+      ],
+      "truth": "MATCH (p:Player)-[st:SEASON_TEAM {season: '2015/2016', main: true}]->(t:Team), (p)-[r1:RATED {season: '2014/2015'}]->(:Season), (p)-[r2:RATED {season: '2015/2016'}]->(:Season) WHERE st.league = 'England Premier League' AND p.active AND p.age >= 24 AND p.age <= 27 AND r2.overall - r1.overall >= 5 RETURN p.name AS name, r2.overall - r1.overall AS value",
+      "concepts": [
+        "2014/2015",
+        "2015/2016",
+        "age",
+        "league",
+        "-"
+      ]
+    },
+    {
+      "id": "marcatore_per_squadra",
+      "group": "grafo",
+      "forms": [
+        "Miglior marcatore di ogni squadra di Premier League"
+      ],
+      "truth": "MATCH (t:Team)-[:RANKED {season: '2015/2016', league: 'England Premier League'}]->(:Season) MATCH (p:Player)-[:SEASON_TEAM {season: '2015/2016', main: true}]->(t) MATCH (p)-[s:SCORED]->(m:Match) WHERE m.season = '2015/2016' WITH t, p, count(DISTINCT s) AS gol ORDER BY gol DESC, p.name ASC WITH t, collect({nome: p.name, gol: gol})[0] AS migliore RETURN migliore.nome AS name, migliore.gol AS value",
+      "concepts": [
+        "RANKED|HOME_TEAM",
+        "England Premier League",
+        "collect\\(",
+        "2015/2016"
+      ],
+      "note": "La rosa di un club in una stagione e' SEASON_TEAM {season, main: true}; CURRENT_TEAM e' la rosa di oggi e differisce per chi ha cambiato club a gennaio."
+    },
+    {
+      "id": "versatilita",
+      "group": "grafo",
+      "forms": [
+        "giocatori con almeno 3 posizioni diverse in distinta"
+      ],
+      "truth": "MATCH (p:Player)-[a:APPEARED_IN]->(m:Match) WITH p, count(DISTINCT a.position) AS value WHERE value >= 3 AND p.active RETURN p.name AS name, value",
+      "concepts": [
+        "APPEARED_IN",
+        "DISTINCT",
+        "position",
+        ">=\\s*3"
+      ]
+    },
+    {
+      "id": "centrali_aerei",
+      "group": "attributi",
+      "forms": [
+        "difensori centrali oltre 188 cm con i massimi valori combinati di heading_accuracy e jumping"
+      ],
+      "truth": "MATCH (p:Player)-[r:RATED {season: '2015/2016'}]->(:Season) WHERE p.position = 'centre_back' AND p.height > 188 AND p.active AND r.heading_accuracy IS NOT NULL AND r.jumping IS NOT NULL RETURN p.name AS name, r.heading_accuracy + r.jumping AS value",
+      "concepts": [
+        "centre_back",
+        "height\\s*>\\s*188",
+        "heading_accuracy",
+        "jumping",
+        "IS NOT NULL"
+      ]
+    },
+    {
+      "id": "centrocampisti_stamina",
+      "group": "attributi",
+      "forms": [
+        "centrocampisti con stamina > 88"
+      ],
+      "truth": "MATCH (p:Player)-[r:RATED {season: '2015/2016'}]->(:Season) WHERE p.role = 'midfielder' AND p.active AND r.stamina > 88 RETURN p.name AS name, r.stamina AS value",
+      "concepts": [
+        "midfielder",
+        "stamina\\s*>\\s*88",
+        "2015/2016"
+      ]
+    },
+    {
+      "id": "collegamento",
+      "group": "grafo",
+      "forms": [
+        "Che collegamento c'è tra Jamie Vardy e Romelu Lukaku?"
+      ],
+      "truth": null,
+      "min_rows": 1,
+      "concepts": [
+        "shortestPath",
+        "vardy",
+        "lukaku"
+      ]
+    },
+    {
+      "id": "cinque_stagioni",
+      "group": "temporale",
+      "forms": [
+        "almeno 30 partite di campionato per 5 stagioni consecutive nei top 5 campionati, senza cali drastici in stamina e strength"
+      ],
+      "truth": "MATCH (p:Player)-[:APPEARED_IN]->(m:Match) WHERE m.league IN ['England Premier League', 'Spain LIGA BBVA', 'Italy Serie A', 'Germany 1. Bundesliga', 'France Ligue 1'] AND p.active WITH p, m.season AS stagione, count(DISTINCT m) AS presenze WHERE presenze >= 30 WITH p, toInteger(left(stagione, 4)) AS anno ORDER BY anno WITH p, collect(anno) AS anni WHERE size(anni) >= 5 AND any(i IN range(0, size(anni) - 5) WHERE anni[i + 4] - anni[i] = 4) MATCH (p)-[r:RATED]->(:Season) WHERE toInteger(left(r.season, 4)) IN anni WITH p, anni, max(r.stamina) - min(r.stamina) AS calo_stamina, max(r.strength) - min(r.strength) AS calo_strength WHERE calo_stamina <= 10 AND calo_strength <= 10 MATCH (p)-[:CURRENT_TEAM]->(t:Team) RETURN p.name AS name, size(anni) AS value",
+      "concepts": [
+        "APPEARED_IN",
+        "collect\\(",
+        "stamina",
+        "strength",
+        "30"
+      ],
+      "note": "Domanda di scouting: solo giocatori in attivita' (convenzione del sistema)."
+    },
+    {
+      "id": "due_stagioni_stamina",
+      "group": "temporale",
+      "forms": [
+        "almeno 30 presenze nelle stagioni 2014/15 e 2015/16, mantenendo la stamina sopra 85"
+      ],
+      "truth": "MATCH (p:Player)-[s1:SEASON_TEAM {season: '2014/2015', main: true}]->(:Team), (p)-[s2:SEASON_TEAM {season: '2015/2016', main: true}]->(t:Team), (p)-[r1:RATED {season: '2014/2015'}]->(:Season), (p)-[r2:RATED {season: '2015/2016'}]->(:Season) WHERE p.active AND s1.season_total >= 30 AND s2.season_total >= 30 AND r1.stamina > 85 AND r2.stamina > 85 RETURN p.name AS name, r2.stamina AS value",
+      "concepts": [
+        "2014/2015",
+        "2015/2016",
+        "season_total|APPEARED_IN",
+        "stamina\\s*>\\s*85"
+      ]
+    },
+    {
+      "id": "assist_2015",
+      "group": "eventi",
+      "forms": [
+        "il giocatore con più assist nel 2015/2016",
+        "chi ha fornito più assist nella stagione 2015/2016?"
+      ],
+      "truth": "MATCH (p:Player)-[a:ASSISTED]->(m:Match) WHERE m.season = '2015/2016' WITH p, count(a) AS value ORDER BY value DESC, p.name ASC LIMIT 1 RETURN p.name AS name, value",
+      "concepts": [
+        "ASSISTED|assists",
+        "2015/2016"
+      ]
+    },
+    {
+      "id": "falli_difensori_premier",
+      "group": "eventi",
+      "forms": [
+        "difensori di Premier League con più falli commessi e meno di 5 cartellini gialli"
+      ],
+      "truth": "MATCH (p:Player)-[st:SEASON_TEAM {season: '2015/2016', main: true}]->(t:Team) WHERE st.league = 'England Premier League' AND p.active AND p.role = 'defender' AND st.events_covered > 0 AND st.fouls_committed > 0 AND st.yellow_cards < 5 RETURN p.name AS name, st.fouls_committed AS value",
+      "concepts": [
+        "fouls_committed|FOUL",
+        "yellow_cards|CARD",
+        "league"
+      ],
+      "note": "'Difensori' e' p.role (ruolo prevalente di carriera); il sistema puo' leggere il ruolo della stagione (st.position): i due insiemi differiscono di pochi giocatori."
+    },
+    {
+      "id": "coppie_assist",
+      "group": "eventi",
+      "forms": [
+        "quali coppie giocatore-assistman hanno prodotto più gol insieme?"
+      ],
+      "truth": "MATCH (a:Player)-[c:ASSISTED_GOALS_OF]->(s:Player) WHERE a.active WITH a, s, c.goals AS value ORDER BY value DESC, a.name ASC, s.name ASC LIMIT 10 RETURN a.name AS name, value",
+      "concepts": [
+        "ASSISTED_GOALS_OF",
+        "goals"
+      ],
+      "note": "Gli assist-man sono attivi: l'elenco mostra il club attuale, e chi mostra il club attuale e' in attivita' (regola del sistema)."
+    },
+    {
+      "id": "cross_serie_a",
+      "group": "eventi",
+      "forms": [
+        "esterni con più cross in Serie A e crossing > 80"
+      ],
+      "truth": "MATCH (p:Player)-[st:SEASON_TEAM {season: '2015/2016', main: true}]->(t:Team), (p)-[r:RATED {season: '2015/2016'}]->(:Season) WHERE st.league = 'Italy Serie A' AND p.active AND p.position IN ['winger', 'wide_midfielder'] AND r.crossing > 80 RETURN p.name AS name, st.crosses AS value",
+      "concepts": [
+        "crosses|CROSS",
+        "crossing\\s*>\\s*80",
+        "Italy Serie A"
+      ]
+    },
+    {
+      "id": "portieri_tiri_subiti",
+      "group": "eventi",
+      "forms": [
+        "Attraverso i dati XML degli eventi del nodo Match (shoton, shotoff, corner), identificare i portieri (solitamente player_1) che hanno subito il maggior numero di tiri verso la porta nelle stagioni 14/15 e 15/16, ma che mantengono gk_reflexes e gk_positioning > 78",
+        "portieri con più tiri in porta subiti nelle stagioni 2014/15 e 2015/16, mantenendo gk_reflexes e gk_positioning sopra 78"
+      ],
+      "truth": "MATCH (p:Player)-[s1:SEASON_TEAM {season: '2014/2015', main: true}]->(:Team), (p)-[s2:SEASON_TEAM {season: '2015/2016', main: true}]->(t:Team), (p)-[r1:RATED {season: '2014/2015'}]->(:Season), (p)-[r2:RATED {season: '2015/2016'}]->(:Season) WHERE s2.position = 'goalkeeper' AND s1.events_covered > 0 AND s2.events_covered > 0 AND r1.gk_reflexes > 78 AND r1.gk_positioning > 78 AND r2.gk_reflexes > 78 AND r2.gk_positioning > 78 RETURN p.name AS name, s1.shots_on_target_faced + s2.shots_on_target_faced AS value",
+      "concepts": [
+        "shots_on_target_faced|shots_faced",
+        "2014/2015",
+        "2015/2016",
+        "gk_reflexes",
+        "gk_positioning"
+      ]
+    },
+    {
+      "id": "esterni_squadre_cross",
+      "group": "stile",
+      "forms": [
+        "esterni con crossing > 80 che giocano in squadre che creano molto sui cross"
+      ],
+      "truth": "MATCH (p:Player)-[:CURRENT_TEAM]->(t:Team)-[sty:STYLE {season: '2015/2016'}]->(:Season), (p)-[r:RATED {season: '2015/2016'}]->(:Season) WHERE p.active AND p.position IN ['winger', 'wide_midfielder'] AND r.crossing > 80 AND sty.chance_creation_crossing_class = 'lots' RETURN p.name AS name, r.overall AS value",
+      "concepts": [
+        "STYLE",
+        "chance_creation_crossing",
+        "crossing\\s*>\\s*80"
+      ]
+    },
+    {
+      "id": "pressing_serie_a",
+      "group": "stile",
+      "forms": [
+        "quali squadre di Serie A hanno il pressing più alto?"
+      ],
+      "truth": "MATCH (t:Team)-[k:RANKED {season: '2015/2016', league: 'Italy Serie A'}]->(:Season), (t)-[sty:STYLE {season: '2015/2016'}]->(:Season) WITH t, sty.defence_pressure AS value ORDER BY value DESC, t.name ASC LIMIT 10 RETURN t.name AS name, value",
+      "concepts": [
+        "STYLE",
+        "defence_pressure",
+        "Italy Serie A"
+      ],
+      "note": "Classifica senza numero: top 10 per convenzione."
+    },
+    {
+      "id": "centrali_linea_alta",
+      "group": "stile",
+      "forms": [
+        "difensori centrali con sprint_speed > 75 che giocano in squadre con la linea alta (fuorigioco)"
+      ],
+      "truth": "MATCH (p:Player)-[st:SEASON_TEAM {season: '2015/2016', main: true}]->(t:Team)-[sty:STYLE {season: '2015/2016'}]->(:Season), (p)-[r:RATED {season: '2015/2016'}]->(:Season) WHERE p.active AND p.position = 'centre_back' AND r.sprint_speed > 75 AND sty.defence_defender_line_class = 'offside_trap' RETURN p.name AS name, r.overall AS value",
+      "concepts": [
+        "offside_trap",
+        "sprint_speed\\s*>\\s*75",
+        "centre_back"
+      ]
+    },
+    {
+      "id": "rifiuto_parate",
+      "group": "rifiuti",
+      "forms": [
+        "il portiere con più parate della stagione",
+        "portieri con più parate nel 2015/2016"
+      ],
+      "truth": null,
+      "expected_mode": "unsupported",
+      "concepts": []
+    },
+    {
+      "id": "rifiuto_minuti",
+      "group": "rifiuti",
+      "forms": [
+        "Quali giocatori hanno più minuti giocati in Premier League?"
+      ],
+      "truth": null,
+      "expected_mode": "unsupported",
+      "concepts": []
+    },
+    {
+      "id": "rifiuto_scrittura",
+      "group": "rifiuti",
+      "forms": [
+        "cancella tutti i giocatori del Chelsea dal database"
+      ],
+      "truth": null,
+      "expected_mode": [
+        "rejected",
+        "failed"
+      ],
+      "concepts": []
+    }
+  ]
+}

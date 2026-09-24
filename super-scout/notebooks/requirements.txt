@@ -1,0 +1,7 @@
+# Dipendenze del solo notebook di analisi: non servono all'API, e per questo non
+# stanno in requirements.txt (l'immagine del servizio resta leggera).
+#   docker compose exec api pip install -r notebooks/requirements.txt
+matplotlib==3.10.0
+pandas==2.2.3
+jupyterlab==4.3.4
+nbconvert==7.16.5

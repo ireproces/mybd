@@ -1,0 +1,1065 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Super-Scout</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%23167a4a%27%20stroke-width%3D%272.2%27%20stroke-linecap%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%278.5%27%2F%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%273%27%20fill%3D%27%23167a4a%27%20stroke%3D%27none%27%2F%3E%3Cpath%20d%3D%27M12%201.5v4M12%2018.5v4M1.5%2012h4M18.5%2012h4%27%2F%3E%3C%2Fsvg%3E" />
+<style>
+  :root {
+    --bg: #f3f5f0;
+    --surface: #ffffff;
+    --surface-2: #f6f8f3;
+    --border: #dfe5da;
+    --text: #15201a;
+    --muted: #61716a;
+    --primary: #167a4a;
+    --primary-strong: #0f5c37;
+    --primary-2: #23995e;
+    --primary-soft: #e3f2e9;
+    --on-primary: #ffffff;
+    --gold: #d0951c;
+    --gold-2: #f0c55a;
+    --on-gold: #2b1d04;
+    --blue: #2b6cb0;
+    --danger: #c0392b;
+    --warn: #b7770d;
+    --header: #0f3d27;
+    --header-2: #16583a;
+    --c-player: #1f8f58;
+    --c-team: #2b6cb0;
+    --c-match: #d0951c;
+    --c-season: #7c6f9b;
+    --radius: 14px;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    --shadow: 0 10px 30px -18px rgba(15, 40, 28, .35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c1410;
+      --surface: #132019;
+      --surface-2: #182a20;
+      --border: #24392d;
+      --text: #e8f0eb;
+      --muted: #97aa9f;
+      --primary: #2a8c58;
+      --primary-strong: #3fa86c;
+      --primary-2: #35a066;
+      --primary-soft: #16301f;
+      --on-primary: #f1faf4;
+      --gold: #e9ad3a;
+      --gold-2: #f7cf78;
+      --on-gold: #241804;
+      --blue: #62a5f2;
+      --danger: #f0716a;
+      --warn: #f2b453;
+      --header: #0a2419;
+      --header-2: #123a27;
+      --c-player: #3fa86c;
+      --c-team: #62a5f2;
+      --c-match: #f0b43e;
+      --c-season: #a89ccf;
+      --shadow: 0 10px 30px -18px rgba(0, 0, 0, .8);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15.5px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", sans-serif;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- header ---------- */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px max(16px, calc(50% - 470px));
+    background: linear-gradient(100deg, var(--header), var(--header-2));
+    color: #fff;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, .18);
+  }
+  .topbar::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--gold) 0%, var(--gold-2) 45%, var(--gold) 75%, color-mix(in srgb, var(--gold) 45%, transparent) 100%);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark {
+    width: 40px; height: 40px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .12);
+    border: 1.5px solid rgba(255, 255, 255, .28);
+    color: #fff;
+  }
+  .mark svg { width: 22px; height: 22px; display: block; }
+  a.mark { text-decoration: none; cursor: pointer; }
+  a.mark:hover, a.mark:focus-visible { background: rgba(255, 255, 255, .22); border-color: rgba(255, 255, 255, .6); }
+  .brand h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: .01em; }
+  .brand p { margin: 0; font-size: 12.5px; color: rgba(255, 255, 255, .72); }
+  .brand p a { color: rgba(255, 255, 255, .88); text-decoration: none; border-bottom: 1px solid rgba(255, 255, 255, .35); }
+  .brand p a:hover { color: #fff; border-bottom-color: var(--gold); }
+  .brand p em { font-style: italic; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .1);
+    border: 1px solid rgba(255, 255, 255, .18);
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, .85);
+    white-space: nowrap;
+  }
+  a.pill { text-decoration: none; cursor: pointer; }
+  a.pill:hover, a.pill:focus-visible { background: rgba(255, 255, 255, .2); border-color: rgba(255, 255, 255, .45); color: #fff; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, .5); }
+  .pill--ok .dot { background: #5fc98a; box-shadow: 0 0 0 3px rgba(95, 201, 138, .25); }
+  .pill--ko .dot { background: #f87171; box-shadow: 0 0 0 3px rgba(248, 113, 113, .25); }
+
+  /* ---------- stream ---------- */
+  .stream {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px max(16px, calc(50% - 470px)) 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /* pagina vuota: mezzo campo stilizzato sullo sfondo */
+  .hero {
+    position: relative;
+    margin: auto 0;
+    padding: 36px 28px 32px;
+    border-radius: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .hero__main { display: flex; align-items: center; gap: 32px; }
+  .hero__text { flex: 1; min-width: 0; }
+  .hero__art {
+    flex: none;
+    width: 210px;
+    height: 210px;
+    color: var(--primary);
+    filter: drop-shadow(0 12px 22px color-mix(in srgb, var(--primary) 22%, transparent));
+  }
+  .hero__art .ball { stroke: currentColor; stroke-opacity: .55; }
+  .hero__art .seam { stroke: currentColor; stroke-opacity: .8; }
+  .hero__art .node { fill: currentColor; }
+  .hero__art .node--gold { fill: var(--gold); }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin: 0 0 14px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary-strong);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .hero h2 {
+    margin: 0 0 12px;
+    font-size: clamp(28px, 5vw, 40px);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    font-weight: 750;
+    max-width: 16ch;
+  }
+  .hero h2 em {
+    font-style: normal;
+    background: linear-gradient(100deg, var(--primary), var(--primary-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero p { margin: 0; color: var(--muted); max-width: 52ch; font-size: 16px; }
+  .coverage {
+    display: flex; flex-wrap: wrap; gap: 8px 22px;
+    margin: 26px 0 0;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .coverage b { color: var(--text); font-weight: 650; }
+
+  .turn { display: flex; flex-direction: column; gap: 12px; }
+  .bubble {
+    align-self: flex-end;
+    max-width: min(90%, 620px);
+    padding: 11px 16px;
+    border-radius: 18px 18px 5px 18px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: var(--on-primary);
+    font-weight: 500;
+    box-shadow: 0 8px 22px -12px color-mix(in srgb, var(--primary) 80%, transparent);
+  }
+
+  .card {
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card__body { padding: 20px 22px 16px; }
+  .answer { white-space: pre-wrap; margin: 0; font-size: 16px; }
+  .card--error { border-left-color: var(--danger); }
+  .card--error .answer { color: var(--danger); }
+  .card--warn { border-left-color: var(--warn); }
+
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 22px 18px; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 7px 13px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .toggle:hover { color: var(--text); border-color: var(--primary); }
+  .toggle[aria-expanded="true"] { color: var(--text); border-color: var(--primary); }
+  .toggle .caret { transition: transform .18s; font-size: 10px; }
+  .toggle[aria-expanded="true"] .caret { transform: rotate(90deg); }
+  .toggle--static { cursor: default; }
+  .count {
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 18%, transparent);
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+  }
+
+  .panel { border-top: 1px solid var(--border); background: var(--surface-2); }
+  .panel[hidden] { display: none; }
+  .panel__head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 18px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .copy {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 4px 11px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .copy:hover { color: var(--text); border-color: var(--primary); }
+  pre.cypher {
+    margin: 0;
+    padding: 0 18px 16px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .cypher .kw { color: var(--blue); font-weight: 600; }
+  .cypher .str { color: var(--primary); }
+  .cypher .num { color: var(--warn); }
+
+  /* ---------- mappa dei collegamenti ---------- */
+  .graph-canvas {
+    height: 480px;
+    width: 100%;
+    background:
+      radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--muted) 22%, transparent) 1px, transparent 0)
+      0 0 / 22px 22px;
+  }
+  .graph-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 18px;
+    border-top: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .legend { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .legend.is-expanded i { border: 1.5px dashed currentColor; background: transparent !important; }
+  .graph-actions { margin-left: auto; display: flex; gap: 8px; }
+  .inspector {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    min-height: 44px;
+  }
+  .inspector__title { color: var(--text); font-weight: 600; margin: 0 0 6px; }
+  .inspector__title small { font-weight: 400; color: var(--muted); margin-left: 8px; font-size: 12px; }
+  .inspector dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 3px 14px;
+  }
+  .inspector dt { color: var(--muted); font-size: 12.5px; }
+  .inspector dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums; }
+  .inspector__hint { color: var(--muted); margin: 0; }
+
+  /* ---------- tabella ---------- */
+  .table-wrap { max-height: 400px; overflow: auto; }
+  /* Su macOS la barra di scorrimento orizzontale si sovrappone al contenuto:
+     un margine sotto la tabella tiene l'ultima riga fuori dalla sua corsia. */
+  table { border-collapse: collapse; width: 100%; font-size: 14px; margin-bottom: 16px; }
+  th, td {
+    padding: 10px 18px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  th {
+    position: sticky; top: 0;
+    background: var(--surface-2);
+    font-size: 12px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--surface) 55%, transparent); }
+  tbody tr:hover td { background: var(--primary-soft); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.rank { color: var(--muted); font-variant-numeric: tabular-nums; width: 1%; }
+  .table-note { padding: 10px 18px; color: var(--muted); font-size: 12.5px; }
+
+  /* ---------- loading ---------- */
+  .thinking { display: flex; align-items: center; gap: 11px; color: var(--muted); font-size: 14px; }
+  .thinking i {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--primary);
+    display: inline-block;
+    animation: bounce 1.1s infinite ease-in-out;
+  }
+  .thinking i:nth-child(2) { animation-delay: .16s; }
+  .thinking i:nth-child(3) { animation-delay: .32s; }
+  @keyframes bounce { 0%, 70%, 100% { opacity: .28; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-4px); } }
+
+  /* ---------- composer ---------- */
+  .composer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 12px max(16px, calc(50% - 470px)) 18px;
+    background: linear-gradient(to top, var(--bg) 70%, transparent);
+  }
+  .field {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 9px 9px 9px 20px;
+    border: 1.5px solid var(--border);
+    border-radius: 26px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .field:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent);
+  }
+  textarea {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    resize: none;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 9px 0;
+    max-height: 168px;
+  }
+  textarea::placeholder { color: var(--muted); }
+  .send {
+    flex: none;
+    width: 42px; height: 42px;
+    display: grid; place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: var(--on-primary);
+    cursor: pointer;
+    box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--primary) 80%, transparent);
+    transition: opacity .15s, transform .15s;
+  }
+  .send:hover:not(:disabled) { transform: scale(1.06); }
+  .send:disabled { opacity: .35; cursor: not-allowed; }
+  .send svg { width: 18px; height: 18px; }
+
+  @media (max-width: 560px) {
+    th, td { white-space: normal; }
+    .hero { padding: 26px 20px; }
+    .hero__art { display: none; }
+    .brand p { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <a class="mark" href="/" title="Torna alla pagina iniziale" aria-label="Torna alla pagina iniziale">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5" />
+        <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+        <path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4" />
+      </svg>
+    </a>
+    <div>
+      <h1>Super-Scout</h1>
+      <p>Basato su <a href="https://www.kaggle.com/datasets/hugomathien/soccer" target="_blank" rel="noopener"><em>European Soccer Database</em></a></p>
+    </div>
+  </div>
+  <a class="pill" id="status" href="http://localhost:7474" target="_blank" rel="noopener"
+     title="Apri Neo4j Browser"><span class="dot"></span><span id="status-text">verifica&hellip;</span></a>
+</header>
+
+<main class="stream" id="stream">
+  <section class="hero" id="hero">
+    <div class="hero__main">
+      <div class="hero__text">
+        <span class="eyebrow">Scouting assistito</span>
+        <h2>Trova il <em>giocatore giusto</em> con una domanda.</h2>
+        <p>
+          Tutto quello che c'è da sapere su giocatori, squadre e partite.
+          Ricevi risposte chiare e puoi sempre vedere i dati da cui nasce.
+        </p>
+      </div>
+      <svg class="hero__art" viewBox="0 0 24 24" fill="none" stroke-width="0.55"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle class="ball" cx="12" cy="12" r="9.5" />
+        <polygon class="seam" points="12,8.2 15.61,10.83 14.23,15.07 9.77,15.07 8.39,10.83" />
+        <path class="seam" d="M12 8.2L12 2.5 M15.61 10.83L21.04 9.06 M14.23 15.07L17.58 19.69 M9.77 15.07L6.42 19.69 M8.39 10.83L2.96 9.06" />
+        <circle cx="12" cy="8.2" r="0.95" class="node" />
+        <circle cx="15.61" cy="10.83" r="0.95" class="node" />
+        <circle cx="14.23" cy="15.07" r="0.95" class="node" />
+        <circle cx="9.77" cy="15.07" r="0.95" class="node" />
+        <circle cx="8.39" cy="10.83" r="0.95" class="node" />
+        <circle cx="12" cy="2.5" r="0.75" class="node node--gold" />
+        <circle cx="21.04" cy="9.06" r="0.75" class="node node--gold" />
+        <circle cx="17.58" cy="19.69" r="0.75" class="node node--gold" />
+        <circle cx="6.42" cy="19.69" r="0.75" class="node node--gold" />
+        <circle cx="2.96" cy="9.06" r="0.75" class="node node--gold" />
+      </svg>
+    </div>
+    <div class="coverage">
+      <span><b>11</b> campionati europei</span>
+      <span><b>8</b> stagioni (dal 2008/09 al 2015/16)</span>
+      <span><b>11.060</b> giocatori</span>
+    </div>
+  </section>
+</main>
+
+<form class="composer" id="composer">
+  <div class="field">
+    <textarea id="input" rows="1" autocomplete="off" aria-label="Domanda"></textarea>
+    <button class="send" id="send" type="submit" aria-label="Invia domanda">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 19V5M5 12l7-7 7 7" />
+      </svg>
+    </button>
+  </div>
+</form>
+
+<script src="/static/vendor/cytoscape.min.js"></script>
+<script>
+(() => {
+  "use strict";
+
+  const stream = document.getElementById("stream");
+  const hero = document.getElementById("hero");
+  const form = document.getElementById("composer");
+  const input = document.getElementById("input");
+  const send = document.getElementById("send");
+  const statusPill = document.getElementById("status");
+  const statusText = document.getElementById("status-text");
+
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+
+  /* ---------- health ---------- */
+  async function checkHealth() {
+    try {
+      const response = await fetch("/health");
+      if (!response.ok) throw new Error(String(response.status));
+      statusPill.className = "pill pill--ok";
+      statusText.textContent = "Grafo pronto";
+    } catch {
+      statusPill.className = "pill pill--ko";
+      statusText.textContent = "Grafo non raggiungibile";
+    }
+  }
+
+  /* ---------- composer ---------- */
+  function autoGrow() {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 168) + "px";
+    send.disabled = input.value.trim().length < 3;
+  }
+  input.addEventListener("input", autoGrow);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  const scrollToEnd = () => stream.scrollTo({ top: stream.scrollHeight, behavior: "smooth" });
+
+  /* ---------- rendering ---------- */
+  const KEYWORDS = /\b(OPTIONAL MATCH|ORDER BY|MATCH|WHERE|RETURN|WITH|LIMIT|SKIP|AND|OR|NOT|AS|DISTINCT|UNWIND|CALL|DESC|ASC|IN|IS|NULL|count|sum|avg|min|max|toInteger|toFloat|toLower)\b/g;
+
+  function highlight(cypher) {
+    const escaped = cypher
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return escaped
+      .replace(/'[^']*'/g, (m) => '<span class="str">' + m + '</span>')
+      .replace(/\b\d+(?:\.\d+)?\b/g, (m) => '<span class="num">' + m + '</span>')
+      .replace(KEYWORDS, (m) => '<span class="kw">' + m + '</span>');
+  }
+
+  function collapsible(label, count, panel, open = false, onOpen = null) {
+    const toggle = el("button", "toggle");
+    toggle.type = "button";
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.append(el("span", "caret", "▶"), el("span", null, label));
+    if (count !== null) toggle.appendChild(el("span", "count", String(count)));
+    panel.hidden = !open;
+    toggle.addEventListener("click", () => {
+      const isOpen = toggle.getAttribute("aria-expanded") === "true";
+      toggle.setAttribute("aria-expanded", String(!isOpen));
+      panel.hidden = isOpen;
+      if (!isOpen && onOpen) onOpen();
+    });
+    return toggle;
+  }
+
+  function timingsLine(timings) {
+    if (!timings) return null;
+    const s = (ms) => (ms >= 1000 ? (ms / 1000).toFixed(1) + " s" : ms + " ms");
+    const parts = [];
+    if (timings.generate_ms !== undefined) parts.push("generazione " + s(timings.generate_ms) + (timings.attempts > 1 ? " (" + timings.attempts + " tentativi)" : ""));
+    if (timings.database_ms !== undefined) parts.push("database " + s(timings.database_ms));
+    if (timings.evidence_ms !== undefined) parts.push("evidenza " + s(timings.evidence_ms));
+    if (timings.explain_ms !== undefined) parts.push("spiegazione " + s(timings.explain_ms));
+    if (timings.total_ms !== undefined) parts.push("totale " + s(timings.total_ms));
+    return el("p", "table-note", parts.join(" · "));
+  }
+
+  function cypherPanel(cypher, evidenceQueries, timings) {
+    const panel = el("div", "panel");
+    const head = el("div", "panel__head");
+    head.appendChild(el("span", null, "Cypher generato"));
+    const copy = el("button", "copy", "Copia");
+    copy.type = "button";
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(cypher);
+        copy.textContent = "Copiato";
+      } catch {
+        copy.textContent = "Non copiabile";
+      }
+      setTimeout(() => { copy.textContent = "Copia"; }, 1600);
+    });
+    head.appendChild(copy);
+    const pre = el("pre", "cypher");
+    pre.innerHTML = highlight(cypher);
+    panel.append(head, pre);
+
+    // Le query da cui nasce la mappa: mostrarle rende verificabile anche l'evidenza.
+    (evidenceQueries || []).forEach((query, index) => {
+      const label = index === 0
+        ? "Evidenza · proiezione delle entità"
+        : "Evidenza · traversata dell'aggregazione";
+      const subhead = el("div", "panel__head");
+      subhead.appendChild(el("span", null, label));
+      const block = el("pre", "cypher");
+      block.innerHTML = highlight(query);
+      panel.append(subhead, block);
+    });
+    const line = timingsLine(timings);
+    if (line) panel.appendChild(line);
+    return panel;
+  }
+
+  /* ---------- tabella ---------- */
+  const MAX_ROWS = 300;
+
+  // Intestazioni leggibili al posto degli alias Cypher (p.name -> Giocatore).
+  // Il nome originale resta nel title della colonna e nella query.
+  const COLUMN_NAMES = {
+    "p.name": "Giocatore", "t.name": "Squadra", "name": "Nome",
+    "age": "Età", "height": "Altezza", "weight": "Peso",
+    "position": "Ruolo", "role": "Reparto", "ruolo": "Ruolo", "reparto": "Reparto",
+    "birthday": "Data di nascita", "last_season": "Ultima stagione", "id": "Id",
+    "appearances": "Presenze", "presenze": "Presenze",
+    "overall": "Overall", "potential": "Potenziale", "potenziale": "Potenziale",
+    "season": "Stagione", "stagione": "Stagione", "league": "Campionato",
+    "date": "Data", "home_goals": "Gol in casa", "away_goals": "Gol in trasferta",
+    "gol": "Gol", "goals": "Gol", "active": "In attività",
+    "preferred_foot": "Piede", "squadre": "Squadre", "stagioni": "Stagioni", "club": "Squadra",
+    "margine": "Margine", "combinato": "Combinato", "somma": "Somma", "media": "Media",
+    "calo": "Calo", "max": "Massimo", "min": "Minimo", "delta": "Variazione",
+    "overall_medio": "Overall medio", "riferimento": "Overall di riferimento",
+    "rank": "Posizione", "teams": "Squadre", "points": "Punti", "top": "Prima fascia",
+    "team_id": "Id squadra", "minute": "Minuto", "penalty": "Rigore", "subtype": "Tipo di gol",
+    "catena": "Catena", "salti": "Salti", "campionato": "Campionato", "partite": "Partite",
+    // I 35 attributi FIFA della relazione RATED, con il nome che usa uno scout italiano.
+    // Solo "overall" resta in inglese: e' il termine corrente anche in italiano.
+    "crossing": "Cross", "finishing": "Finalizzazione", "heading_accuracy": "Precisione di testa",
+    "short_passing": "Passaggio corto", "volleys": "Volée", "dribbling": "Dribbling",
+    "curve": "Effetto", "free_kick_accuracy": "Punizioni", "long_passing": "Passaggio lungo",
+    "ball_control": "Controllo di palla", "acceleration": "Accelerazione", "sprint_speed": "Velocità",
+    "agility": "Agilità", "reactions": "Reattività", "balance": "Equilibrio", "shot_power": "Potenza di tiro",
+    "jumping": "Elevazione", "stamina": "Resistenza", "strength": "Forza", "long_shots": "Tiro da fuori",
+    "aggression": "Aggressività", "interceptions": "Intercetti", "positioning": "Posizionamento",
+    "vision": "Visione", "penalties": "Rigori", "marking": "Marcatura", "standing_tackle": "Contrasto",
+    "sliding_tackle": "Scivolata", "gk_diving": "Tuffo", "gk_handling": "Presa", "gk_kicking": "Rinvio",
+    "gk_positioning": "Piazzamento", "gk_reflexes": "Riflessi",
+    "attacking_work_rate": "Impegno offensivo", "defensive_work_rate": "Impegno difensivo",
+    // Eventi di gioco e totali di stagione su SEASON_TEAM.
+    "assists": "Assist", "assist": "Assist", "shots": "Tiri", "tiri": "Tiri", "shots_on_target": "Tiri in porta",
+    "tiri_in_porta": "Tiri in porta", "fouls_committed": "Falli commessi", "falli_commessi": "Falli commessi",
+    "fouls_suffered": "Falli subiti", "falli_subiti": "Falli subiti", "yellow_cards": "Cartellini gialli",
+    "red_cards": "Cartellini rossi", "gialli": "Cartellini gialli", "rossi": "Cartellini rossi",
+    "crosses": "Cross", "cross": "Cross", "corners": "Calci d'angolo", "corner": "Calci d'angolo",
+    "shots_faced": "Tiri subiti", "shots_on_target_faced": "Tiri in porta subiti", "tiri_subiti": "Tiri subiti",
+    "tiri_in_porta_subiti": "Tiri in porta subiti", "events_covered": "Partite coperte", "partite_coperte": "Partite coperte",
+    "has_events": "Cronaca completa", "home_possession": "Possesso casa", "away_possession": "Possesso trasferta",
+    "on_target": "In porta", "blocked": "Murato", "card_type": "Cartellino", "victim_id": "Id subisce", "by_id": "Id commette",
+    "scorer_id": "Id marcatore", "x": "X", "y": "Y", "seasons": "Stagioni", "marcatore": "Marcatore", "assistman": "Assist-man",
+    // Stile di gioco della squadra (STYLE).
+    "build_up_speed": "Velocità costruzione", "build_up_speed_class": "Costruzione", "build_up_dribbling": "Dribbling costruzione",
+    "build_up_dribbling_class": "Dribbling", "build_up_passing": "Passaggio costruzione", "build_up_passing_class": "Passaggio",
+    "build_up_positioning_class": "Posizionamento offensivo", "chance_creation_passing": "Creazione: passaggio",
+    "chance_creation_passing_class": "Passaggio creativo", "chance_creation_crossing": "Creazione: cross",
+    "chance_creation_crossing_class": "Cross creativi", "chance_creation_shooting": "Creazione: tiro",
+    "chance_creation_shooting_class": "Tiri creativi", "chance_creation_positioning_class": "Posizionamento creativo",
+    "defence_pressure": "Pressione difensiva", "defence_pressure_class": "Pressing", "defence_aggression": "Aggressività difensiva",
+    "defence_aggression_class": "Aggressività", "defence_team_width": "Ampiezza difensiva", "defence_team_width_class": "Ampiezza",
+    "defence_defender_line_class": "Linea difensiva"
+  };
+  // I valori codificati del grafo, in italiano: chi legge e' uno scout, non chi ha
+  // scritto il loader. Nomi di giocatori, club e campionati restano come sono.
+  const VALUE_NAMES = {
+    goalkeeper: "Portiere", defender: "Difensore", midfielder: "Centrocampista", forward: "Attaccante",
+    centre_back: "Difensore centrale", full_back: "Terzino", central_midfielder: "Centrocampista centrale",
+    wide_midfielder: "Esterno di centrocampo", striker: "Centravanti", winger: "Ala",
+    left: "Sinistro", right: "Destro", low: "Basso", medium: "Medio", high: "Alto",
+    y: "Giallo", y2: "Secondo giallo", r: "Rosso",
+    slow: "Lenta", balanced: "Equilibrata", fast: "Veloce", little: "Poco", normal: "Normale", lots: "Molto",
+    short: "Corto", mixed: "Misto", long: "Lungo", organised: "Organizzato", free_form: "Libero", safe: "Sicuro", risky: "Rischioso",
+    deep: "Bassa", contain: "Contenimento", press: "Pressing", double: "Raddoppi", narrow: "Stretta", wide: "Larga",
+    cover: "Copertura", offside_trap: "Fuorigioco"
+  };
+  function displayValue(value) {
+    if (value === null || value === undefined) return "—";
+    if (typeof value === "boolean") return value ? "Sì" : "No";
+    if (typeof value === "string") return VALUE_NAMES[value] || value;
+    // collect() di valori semplici, es. presenze per stagione: "2014/2015: 37 · 2015/2016: 38"
+    if (Array.isArray(value) && value.every((v) => v === null || typeof v !== "object")) return value.map(displayValue).join(" · ");
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  }
+
+  function columnLabel(key) {
+    if (COLUMN_NAMES[key]) return COLUMN_NAMES[key];
+    const bare = key.replace(/^[A-Za-z_]\w*\./, "");
+    if (COLUMN_NAMES[bare]) return COLUMN_NAMES[bare];
+    // presenze_2014_2015 -> "Presenze 2014/2015"; club_2015_2016 -> "Squadra 2015/2016"
+    const perSeason = bare.match(/^(\w+?)_(\d{4})_(\d{4})$/);
+    if (perSeason) return columnLabel(perSeason[1]) + " " + perSeason[2] + "/" + perSeason[3];
+    const perStagione = bare.match(/^(\w+?)_per_stagione$/);
+    if (perStagione) return columnLabel(perStagione[1]) + " per stagione";
+    // calo_stamina -> "Calo resistenza"; media_jumping -> "Media elevazione"
+    const prefixed = bare.match(/^(calo|media|max|min|somma|delta)_(\w+)$/);
+    if (prefixed && COLUMN_NAMES[prefixed[2]]) return columnLabel(prefixed[1]) + " " + COLUMN_NAMES[prefixed[2]].toLowerCase();
+    return bare.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+  }
+
+  function rowsPanel(rows) {
+    const panel = el("div", "panel");
+    const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+    const wrap = el("div", "table-wrap");
+    const table = el("table");
+
+    const thead = el("thead");
+    const headRow = el("tr");
+    headRow.appendChild(el("th", null, "#"));
+    columns.forEach((column) => {
+      const th = el("th", null, columnLabel(column));
+      th.title = column;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+
+    const tbody = el("tbody");
+    rows.slice(0, MAX_ROWS).forEach((row, index) => {
+      const tr = el("tr");
+      tr.appendChild(el("td", "rank", String(index + 1)));
+      columns.forEach((column) => {
+        const value = row[column];
+        const cell = el("td", typeof value === "number" ? "num" : null);
+        cell.textContent = displayValue(value);
+        tr.appendChild(cell);
+      });
+      tbody.appendChild(tr);
+    });
+
+    table.append(thead, tbody);
+    wrap.appendChild(table);
+    panel.appendChild(wrap);
+    if (rows.length > MAX_ROWS) {
+      panel.appendChild(el("p", "table-note", "Mostrati i primi " + MAX_ROWS + " risultati di " + rows.length + "."));
+    }
+    return panel;
+  }
+
+  /* ---------- mappa dei collegamenti ---------- */
+  const NODE_COLORS = { Player: "--c-player", Team: "--c-team", Match: "--c-match", Season: "--c-season" };
+  const NODE_LABELS = { Player: "Giocatore", Team: "Squadra", Match: "Partita", Season: "Stagione" };
+
+  function cssVar(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+  }
+
+  function propertyList(title, subtitle, properties) {
+    const box = document.createDocumentFragment();
+    const heading = el("p", "inspector__title", title);
+    if (subtitle) heading.appendChild(el("small", null, subtitle));
+    box.appendChild(heading);
+    const list = el("dl");
+    Object.entries(properties || {}).forEach(([key, value]) => {
+      list.append(el("dt", null, columnLabel(key)), el("dd", null, displayValue(value)));
+    });
+    if (list.childElementCount) box.appendChild(list);
+    return box;
+  }
+
+  function graphPanel(subgraph) {
+    const panel = el("div", "panel");
+    const canvas = el("div", "graph-canvas");
+    panel.appendChild(canvas);
+
+    const meta = el("div", "graph-meta");
+    [...new Set(subgraph.nodes.map((node) => node.label))].forEach((label) => {
+      const item = el("span", "legend");
+      const swatch = el("i");
+      swatch.style.background = cssVar(NODE_COLORS[label] || "--muted", "#61716a");
+      item.append(swatch, el("span", null, NODE_LABELS[label] || label));
+      meta.appendChild(item);
+    });
+    if (subgraph.nodes.some((node) => node.expanded)) {
+      const item = el("span", "legend is-expanded");
+      item.append(el("i"), el("span", null, "elementi di passaggio"));
+      meta.appendChild(item);
+    }
+    meta.appendChild(el("span", null,
+      subgraph.nodes.length + " elementi · " + subgraph.edges.length + " collegamenti" +
+      (subgraph.truncated ? " (campione)" : "")));
+
+    const actions = el("div", "graph-actions");
+    const relayout = el("button", "copy", "Riordina");
+    const fitButton = el("button", "copy", "Centra");
+    relayout.type = fitButton.type = "button";
+    actions.append(relayout, fitButton);
+    meta.appendChild(actions);
+    panel.appendChild(meta);
+
+    const inspector = el("div", "inspector");
+    const resetInspector = () => {
+      inspector.replaceChildren(
+        el("p", "inspector__hint", "Clicca un giocatore, una squadra o una partita per vederne i dettagli.")
+      );
+    };
+    resetInspector();
+    panel.appendChild(inspector);
+
+    const ids = new Set(subgraph.nodes.map((node) => node.id));
+    const elements = [
+      ...subgraph.nodes.map((node) => ({
+        data: {
+          id: node.id,
+          caption: node.caption,
+          label: node.label,
+          expanded: node.expanded ? 1 : 0,
+          props: node.properties
+        }
+      })),
+      ...subgraph.edges
+        .filter((edge) => ids.has(edge.source) && ids.has(edge.target))
+        .map((edge) => ({
+          data: {
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            caption: edge.type,
+            props: edge.properties
+          }
+        }))
+    ];
+
+    const text = cssVar("--text", "#15201a");
+    const muted = cssVar("--muted", "#61716a");
+    const border = cssVar("--border", "#dfe5da");
+    const surface = cssVar("--surface", "#ffffff");
+    const accent = cssVar("--gold", "#d0951c");
+    const showEdgeLabels = subgraph.edges.length <= 24;
+    const layoutOptions = {
+      name: "cose",
+      animate: false,
+      padding: 26,
+      nodeRepulsion: 26000,
+      idealEdgeLength: 60,
+      nodeOverlap: 24,
+      componentSpacing: 110,
+      gravity: 45,
+      numIter: 1200
+    };
+
+    let cy = null;
+
+    function mount() {
+      if (cy || typeof cytoscape !== "function" || !canvas.clientWidth) return;
+      cy = cytoscape({
+        container: canvas,
+        elements,
+        wheelSensitivity: 0.25,
+        style: [
+          {
+            selector: "node",
+            style: {
+              "background-color": (node) => cssVar(NODE_COLORS[node.data("label")] || "--muted", muted),
+              "label": "data(caption)",
+              "color": text,
+              "font-size": 9,
+              "text-valign": "bottom",
+              "text-margin-y": 3,
+              "text-wrap": "ellipsis",
+              "text-max-width": 84,
+              "text-background-color": surface,
+              "text-background-opacity": 0.85,
+              "text-background-padding": 2,
+              "width": 20,
+              "height": 20,
+              "border-width": 2,
+              "border-color": surface
+            }
+          },
+          {
+            selector: "node[expanded = 1]",
+            style: { width: 10, height: 10, "background-opacity": 0.5, "border-style": "dashed", "border-color": border, label: "" }
+          },
+          {
+            selector: "edge",
+            style: {
+              "width": 1.4,
+              "line-color": muted,
+              "line-opacity": 0.7,
+              "curve-style": "bezier",
+              "target-arrow-shape": "triangle",
+              "target-arrow-color": muted,
+              "arrow-scale": 0.7,
+              "label": showEdgeLabels ? "data(caption)" : "",
+              "font-size": 8,
+              "color": muted,
+              "text-rotation": "autorotate",
+              "text-background-color": surface,
+              "text-background-opacity": 0.85,
+              "text-background-padding": 2
+            }
+          },
+          {
+            selector: ":selected",
+            style: {
+              "border-width": 3,
+              "border-color": accent,
+              "line-color": accent,
+              "target-arrow-color": accent,
+              "width": (ele) => (ele.isEdge() ? 2.4 : 24),
+              "height": 24
+            }
+          }
+        ],
+        layout: layoutOptions
+      });
+
+      cy.on("tap", "node", (event) => {
+        const node = event.target;
+        inspector.replaceChildren(propertyList(
+          node.data("caption"), NODE_LABELS[node.data("label")] || node.data("label"), node.data("props")));
+      });
+      cy.on("tap", "edge", (event) => {
+        const edge = event.target;
+        inspector.replaceChildren(propertyList(edge.data("caption"), "collegamento", edge.data("props")));
+      });
+      cy.on("tap", (event) => {
+        if (event.target === cy) resetInspector();
+      });
+
+      relayout.addEventListener("click", () => cy.layout(layoutOptions).run());
+      fitButton.addEventListener("click", () => cy.fit(undefined, 26));
+    }
+
+    const refresh = () => {
+      if (!cy) {
+        mount();
+        return;
+      }
+      cy.resize();
+      cy.fit(undefined, 26);
+    };
+
+    requestAnimationFrame(mount);
+    return { panel, refresh };
+  }
+
+  function renderResult(turn, payload) {
+    const card = el("div", "card");
+    if (["configuration_required", "rejected", "unsupported", "failed"].includes(payload.mode)) card.classList.add("card--warn");
+    const body = el("div", "card__body");
+    body.appendChild(el("p", "answer", payload.answer));
+    card.appendChild(body);
+
+    const tools = el("div", "tools");
+    const panels = [];
+    const subgraph = payload.subgraph;
+    const hasGraph = Boolean(subgraph && subgraph.nodes && subgraph.nodes.length);
+
+    // Il grafo e' l'evidenza primaria: aperto per primo, la tabella resta a portata.
+    if (hasGraph) {
+      const graph = graphPanel(subgraph);
+      tools.appendChild(collapsible("Grafo di evidenza", subgraph.nodes.length, graph.panel, false, graph.refresh));
+      panels.push(graph.panel);
+    }
+    if (Array.isArray(payload.rows) && payload.rows.length) {
+      const panel = rowsPanel(payload.rows);
+      tools.appendChild(collapsible("Risultati", payload.rows.length, panel));
+      panels.push(panel);
+    } else if (payload.cypher) {
+      tools.appendChild(el("span", "toggle toggle--static", "Nessuna riga restituita"));
+    }
+    if (payload.cypher) {
+      const panel = cypherPanel(payload.cypher, subgraph && subgraph.queries, payload.timings);
+      tools.appendChild(collapsible("Cypher", null, panel));
+      panels.push(panel);
+    }
+
+    if (tools.childElementCount) card.appendChild(tools);
+    panels.forEach((panel) => card.appendChild(panel));
+
+    turn.appendChild(card);
+  }
+
+  function renderError(turn, message) {
+    const card = el("div", "card card--error");
+    const body = el("div", "card__body");
+    body.appendChild(el("p", "answer", message));
+    card.appendChild(body);
+    turn.appendChild(card);
+  }
+
+  /* ---------- submit ---------- */
+  let busy = false;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const question = input.value.trim();
+    if (busy || question.length < 3) return;
+
+    busy = true;
+    send.disabled = true;
+    if (hero.isConnected) hero.remove();
+    input.value = "";
+    autoGrow();
+
+    const turn = el("section", "turn");
+    turn.appendChild(el("div", "bubble", question));
+    const loader = el("div", "thinking");
+    loader.append(el("i"), el("i"), el("i"), el("span", null, "Sto cercando nel database…"));
+    turn.appendChild(loader);
+    stream.appendChild(turn);
+    scrollToEnd();
+
+    try {
+      const response = await fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question })
+      });
+      const payload = await response.json();
+      loader.remove();
+      if (!response.ok) {
+        renderError(turn, payload.detail || ("Errore " + response.status));
+      } else {
+        renderResult(turn, payload);
+      }
+    } catch (error) {
+      loader.remove();
+      renderError(turn, "Impossibile contattare il servizio: " + error.message);
+    } finally {
+      busy = false;
+      autoGrow();
+      input.focus();
+      scrollToEnd();
+    }
+  });
+
+  autoGrow();
+  checkHealth();
+  input.focus();
+
+  // Deep link: /?q=domanda apre la pagina con la domanda gia inviata.
+  const initial = new URLSearchParams(location.search).get("q");
+  if (initial && initial.trim().length >= 3) {
+    input.value = initial.trim();
+    autoGrow();
+    form.requestSubmit();
+  }
+})();
+</script>
+</body>
+</html>

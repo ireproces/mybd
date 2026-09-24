@@ -1,0 +1,9 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+neo4j==5.28.1
+openai==1.59.7
+pydantic-settings==2.7.1
+httpx==0.28.1
+python-dotenv==1.0.1
+pytest==8.3.4
+kagglehub==0.3.12

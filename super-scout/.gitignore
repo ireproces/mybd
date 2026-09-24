@@ -1,0 +1,22 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+data/raw/
+data/processed/
+*.log
+
+# File di sistema e artefatti locali
+.DS_Store
+Thumbs.db
+.ipynb_checkpoints/
+
+#  Documenti
+docs/PROJECT.md
+
+# Materiale non prodotto da questo progetto: il repository e' pubblico.
+# P1.pdf sono le slide di assegnazione del corso (materiale del docente),
+# first_project.pdf e' un progetto precedente, estraneo a Super-Scout.
+P1.pdf
+first_project.pdf
